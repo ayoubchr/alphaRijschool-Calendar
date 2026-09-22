@@ -3278,7 +3278,7 @@ git commit -m "feat: add admin auth guard and agenda view"
 ### Task 26: Admin availability management (page + API)
 
 **Files:**
-- Create: `src/app/api/admin/availability/route.ts`, `src/app/admin/beschikbaarheid/page.tsx`, `src/app/admin/beschikbaarheid/AvailabilityView.tsx`
+- Create: `src/app/api/admin/availability/route.ts`, `src/app/admin/(dashboard)/beschikbaarheid/page.tsx`, `src/app/admin/(dashboard)/beschikbaarheid/AvailabilityView.tsx`
 - Test: `src/app/api/admin/availability/route.test.ts`
 
 **Interfaces:**
@@ -3362,7 +3362,7 @@ export async function POST(request: NextRequest) {
 }
 ```
 
-`src/app/admin/beschikbaarheid/AvailabilityView.tsx`:
+`src/app/admin/(dashboard)/beschikbaarheid/AvailabilityView.tsx`:
 ```tsx
 "use client";
 
@@ -3441,7 +3441,7 @@ export function AvailabilityView({ instructors: initialInstructors }: { instruct
 }
 ```
 
-`src/app/admin/beschikbaarheid/page.tsx`:
+`src/app/admin/(dashboard)/beschikbaarheid/page.tsx`:
 ```tsx
 import { prisma } from "@/lib/prisma";
 import { AvailabilityView } from "./AvailabilityView";
@@ -3457,7 +3457,7 @@ export default async function AdminAvailabilityPage() {
 - [ ] **Step 5: Commit**
 
 ```bash
-git add src/app/api/admin/availability src/app/admin/beschikbaarheid
+git add src/app/api/admin/availability src/app/admin/(dashboard)/beschikbaarheid
 git commit -m "feat: add admin availability management"
 ```
 
@@ -3466,7 +3466,7 @@ git commit -m "feat: add admin availability management"
 ### Task 27: Admin bookings management (confirm/cancel/reschedule)
 
 **Files:**
-- Create: `src/app/api/admin/lessons/[id]/route.ts`, `src/app/admin/boekingen/page.tsx`, `src/app/admin/boekingen/BookingsView.tsx`
+- Create: `src/app/api/admin/lessons/[id]/route.ts`, `src/app/admin/(dashboard)/boekingen/page.tsx`, `src/app/admin/(dashboard)/boekingen/BookingsView.tsx`
 - Test: `src/app/api/admin/lessons/[id]/route.test.ts`
 
 **Interfaces:**
@@ -3572,7 +3572,7 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
 }
 ```
 
-`src/app/admin/boekingen/BookingsView.tsx`:
+`src/app/admin/(dashboard)/boekingen/BookingsView.tsx`:
 ```tsx
 "use client";
 
@@ -3631,7 +3631,7 @@ export function BookingsView({ lessons: initialLessons }: { lessons: Lesson[] })
 }
 ```
 
-`src/app/admin/boekingen/page.tsx`:
+`src/app/admin/(dashboard)/boekingen/page.tsx`:
 ```tsx
 import { prisma } from "@/lib/prisma";
 import { BookingsView } from "./BookingsView";
@@ -3651,7 +3651,7 @@ export default async function AdminBookingsPage() {
 - [ ] **Step 5: Commit**
 
 ```bash
-git add src/app/api/admin/lessons src/app/admin/boekingen
+git add src/app/api/admin/lessons src/app/admin/(dashboard)/boekingen
 git commit -m "feat: add admin booking confirm/cancel management with cancellation policy"
 ```
 
@@ -3660,13 +3660,13 @@ git commit -m "feat: add admin booking confirm/cancel management with cancellati
 ### Task 28: Admin dossiers overview + simple report
 
 **Files:**
-- Create: `src/app/admin/dossiers/page.tsx`, `src/app/admin/rapport/page.tsx`
+- Create: `src/app/admin/(dashboard)/dossiers/page.tsx`, `src/app/admin/(dashboard)/rapport/page.tsx`
 
 **Interfaces:** none new — reuses `prisma` and existing models.
 
 - [ ] **Step 1: Write a smoke test for the dossiers listing query**
 
-`src/app/admin/dossiers/dossierQuery.test.ts`:
+`src/app/admin/(dashboard)/dossiers/dossierQuery.test.ts`:
 ```ts
 import { describe, it, expect, beforeEach, afterAll } from "vitest";
 import { prisma } from "@/lib/prisma";
@@ -3693,7 +3693,7 @@ describe("getDossierOverview", () => {
 
 - [ ] **Step 3: Implement the query helper and both pages**
 
-`src/app/admin/dossiers/dossierQuery.ts`:
+`src/app/admin/(dashboard)/dossiers/dossierQuery.ts`:
 ```ts
 import { prisma } from "@/lib/prisma";
 
@@ -3705,7 +3705,7 @@ export async function getDossierOverview() {
 }
 ```
 
-`src/app/admin/dossiers/page.tsx`:
+`src/app/admin/(dashboard)/dossiers/page.tsx`:
 ```tsx
 import { getDossierOverview } from "./dossierQuery";
 
@@ -3737,7 +3737,7 @@ export default async function AdminDossiersPage() {
 }
 ```
 
-`src/app/admin/rapport/page.tsx`:
+`src/app/admin/(dashboard)/rapport/page.tsx`:
 ```tsx
 import { prisma } from "@/lib/prisma";
 
@@ -3766,7 +3766,7 @@ export default async function AdminReportPage() {
 - [ ] **Step 5: Commit**
 
 ```bash
-git add src/app/admin/dossiers src/app/admin/rapport
+git add src/app/admin/(dashboard)/dossiers src/app/admin/(dashboard)/rapport
 git commit -m "feat: add admin dossier overview and revenue report"
 ```
 
