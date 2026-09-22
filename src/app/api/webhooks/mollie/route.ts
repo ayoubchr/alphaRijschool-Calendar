@@ -23,14 +23,31 @@ export async function POST(request: NextRequest) {
   const { status } = await getPaymentStatus(paymentId);
   const blockHours = LESSON_BLOCK_MINUTES / 60;
 
-  if (status === "paid" && payment.status !== "PAID") {
+  if (status === "paid") {
+    // Atomically claim this payment for processing. A plain findUnique-then-check (the previous
+    // approach) has a race: two concurrent or retried webhook deliveries for the same payment
+    // could both read status !== "PAID" before either writes, and both would then double-process
+    // it (double-decrementing hours, creating two magic links, sending two confirmation emails).
+    // The conditional updateMany below can only ever flip exactly one caller's request from
+    // non-PAID to PAID — Postgres serializes the two UPDATEs on the same row, and whichever loses
+    // the race sees its WHERE clause fail to match (count 0) once the winner has already committed.
+    const claimed = await prisma.payment.updateMany({
+      where: { id: payment.id, status: { not: "PAID" } },
+      data: { status: "PAID" },
+    });
+    if (claimed.count === 0) {
+      // Another request already processed this payment — no-op, don't repeat the side effects.
+      return NextResponse.json({ received: true });
+    }
+
+    const decrementHours = payment.dossier.lessons.length * blockHours;
+    // Defensive floor: never let hoursRemaining go negative. This matters for 0-hour packages
+    // (e.g. "Praktijkexamen") whose confirmed lesson still consumes a block.
+    const newHoursRemaining = Math.max(0, payment.dossier.hoursRemaining - decrementHours);
+
     await prisma.$transaction([
-      prisma.payment.update({ where: { id: payment.id }, data: { status: "PAID" } }),
       prisma.lesson.updateMany({ where: { dossierId: payment.dossierId, status: "PLANNED" }, data: { status: "CONFIRMED" } }),
-      prisma.dossier.update({
-        where: { id: payment.dossierId },
-        data: { hoursRemaining: { decrement: payment.dossier.lessons.length * blockHours } },
-      }),
+      prisma.dossier.update({ where: { id: payment.dossierId }, data: { hoursRemaining: newHoursRemaining } }),
     ]);
 
     const magicLink = await prisma.magicLink.create({
@@ -44,10 +61,16 @@ export async function POST(request: NextRequest) {
       lessons: payment.dossier.lessons.map((l) => ({ startAt: l.startAt, endAt: l.endAt })),
     });
   } else if (["failed", "canceled", "expired"].includes(status)) {
-    await prisma.$transaction([
-      prisma.payment.update({ where: { id: payment.id }, data: { status: "FAILED" } }),
-      prisma.lesson.updateMany({ where: { dossierId: payment.dossierId, status: "PLANNED" }, data: { status: "CANCELLED" } }),
-    ]);
+    // Same idempotent-claim pattern as the paid branch, so a retried failure notification
+    // doesn't repeatedly re-cancel lessons that a later, different event may have already
+    // moved on from.
+    const claimed = await prisma.payment.updateMany({
+      where: { id: payment.id, status: { not: "FAILED" } },
+      data: { status: "FAILED" },
+    });
+    if (claimed.count > 0) {
+      await prisma.lesson.updateMany({ where: { dossierId: payment.dossierId, status: "PLANNED" }, data: { status: "CANCELLED" } });
+    }
   }
 
   return NextResponse.json({ received: true });
