@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { Prisma, type Transmission } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { computeAvailableSlots } from "@/lib/availability";
 import { LESSON_BLOCK_MINUTES } from "@/lib/constants";
@@ -24,15 +25,17 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Pakket niet gevonden." }, { status: 404 });
   }
 
+  const instructorWhere: Prisma.InstructorWhereInput = { active: true };
+  if (instructorId) instructorWhere.id = instructorId;
+  if (transmissionParam) {
+    // Only show instructors who can teach the requested transmission — an instructor whose
+    // `transmission` is fixed to AUTOMAAT or MANUEEL should never be offered to a student who
+    // chose the other one. Instructors marked BOTH always qualify.
+    instructorWhere.transmission = { in: ["BOTH", transmissionParam] as Transmission[] };
+  }
+
   const instructors = await prisma.instructor.findMany({
-    where: {
-      active: true,
-      ...(instructorId ? { id: instructorId } : {}),
-      // Only show instructors who can teach the requested transmission — an instructor whose
-      // `transmission` is fixed to AUTOMAAT or MANUEEL should never be offered to a student who
-      // chose the other one. Instructors marked BOTH always qualify.
-      ...(transmissionParam ? { transmission: { in: ["BOTH", transmissionParam] } } : {}),
-    },
+    where: instructorWhere,
     include: { availabilityRules: true, availabilityExceptions: true },
   });
 
