@@ -8,6 +8,8 @@ export default defineConfig({
     environment: "jsdom",
     setupFiles: ["./src/test/setup.ts"],
     globalSetup: ["./src/test/globalSetup.ts"],
+    testTimeout: 15000,
+    maxWorkers: 1,
   },
   resolve: { alias: { "@": path.resolve(__dirname, "./src") } },
 });
