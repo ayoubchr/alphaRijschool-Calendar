@@ -32,7 +32,10 @@ export function LessonCalendar({ slots, selectedSlot, onSelectSlot }: LessonCale
     resource: slot,
   }));
 
-  const defaultDate = slots.length > 0 ? new Date(slots[0].startAt) : new Date();
+  const defaultDate =
+    slots.length > 0
+      ? new Date(Math.min(...slots.map((slot) => new Date(slot.startAt).getTime())))
+      : new Date();
 
   return (
     <Calendar
