@@ -48,7 +48,7 @@ export function SummaryStep({ selectedPackage, transmission, slot, details, onBa
     <div>
       <h1 className="mb-6 text-2xl font-bold">Samenvatting</h1>
       <p><strong>Pakket:</strong> {selectedPackage.name} ({transmission === "AUTOMAAT" ? "automaat" : "manueel"})</p>
-      <p><strong>Lesmoment:</strong> {new Date(slot.startAt).toLocaleString("nl-BE")}</p>
+      <p><strong>Lesmoment:</strong> {new Date(slot.startAt).toLocaleString("nl-BE", { timeZone: "Europe/Brussels" })}</p>
       <p><strong>Naam:</strong> {details.firstName} {details.lastName}</p>
       {error && <p className="text-sm text-red-600">{error}</p>}
 

@@ -18,7 +18,10 @@ export async function sendBookingConfirmationEmail(params: {
 }) {
   const resend = getResendClient();
   const lessonLines = params.lessons
-    .map((l) => `- ${l.startAt.toLocaleString("nl-BE")} tot ${l.endAt.toLocaleString("nl-BE")}`)
+    .map(
+      (l) =>
+        `- ${l.startAt.toLocaleString("nl-BE", { timeZone: "Europe/Brussels" })} tot ${l.endAt.toLocaleString("nl-BE", { timeZone: "Europe/Brussels" })}`
+    )
     .join("\n");
 
   await resend.emails.send({

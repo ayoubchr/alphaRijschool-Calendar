@@ -38,7 +38,7 @@ export function BookingsView({ lessons: initialLessons }: { lessons: Lesson[] })
         <tbody>
           {lessons.map((lesson) => (
             <tr key={lesson.id} className="border-b">
-              <td className="py-2">{new Date(lesson.startAt).toLocaleString("nl-BE")}</td>
+              <td className="py-2">{new Date(lesson.startAt).toLocaleString("nl-BE", { timeZone: "Europe/Brussels" })}</td>
               <td>{lesson.dossier.firstName} {lesson.dossier.lastName}</td>
               <td>{lesson.instructor.name}</td>
               <td>{lesson.status}</td>

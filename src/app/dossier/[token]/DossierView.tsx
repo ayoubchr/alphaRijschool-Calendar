@@ -35,7 +35,7 @@ export function DossierView({ dossier, token }: { dossier: DossierData; token: s
       <ul className="mb-8 space-y-2">
         {dossier.lessons.map((lesson) => (
           <li key={lesson.id} className="rounded border p-3 text-sm">
-            {new Date(lesson.startAt).toLocaleString("nl-BE")} met {lesson.instructor.name} &mdash; {lesson.status}
+            {new Date(lesson.startAt).toLocaleString("nl-BE", { timeZone: "Europe/Brussels" })} met {lesson.instructor.name} &mdash; {lesson.status}
           </li>
         ))}
       </ul>
