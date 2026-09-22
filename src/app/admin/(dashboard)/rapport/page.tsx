@@ -1,6 +1,14 @@
+import { redirect } from "next/navigation";
+import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
 export default async function AdminReportPage() {
+  const session = await auth();
+  const role = (session?.user as any)?.role;
+  if (role !== "ADMIN") {
+    redirect("/admin/agenda");
+  }
+
   const sevenDaysAgo = new Date();
   sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
 
