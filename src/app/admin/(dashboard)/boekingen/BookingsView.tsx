@@ -13,6 +13,7 @@ interface Lesson {
 
 export function BookingsView({ lessons: initialLessons }: { lessons: Lesson[] }) {
   const [lessons, setLessons] = useState(initialLessons);
+  const [cancelNotices, setCancelNotices] = useState<Record<string, string>>({});
 
   async function handleAction(id: string, action: "confirm" | "cancel") {
     const response = await fetch(`/api/admin/lessons/${id}`, {
@@ -23,6 +24,14 @@ export function BookingsView({ lessons: initialLessons }: { lessons: Lesson[] })
     if (response.ok) {
       const body = await response.json();
       setLessons((prev) => prev.map((l) => (l.id === id ? { ...l, status: body.status } : l)));
+      if (action === "cancel") {
+        setCancelNotices((prev) => ({
+          ...prev,
+          [id]: body.refundEligible
+            ? "Geannuleerd — tegoed hersteld."
+            : "Geannuleerd — voorschot vervalt (binnen 48u).",
+        }));
+      }
     }
   }
 
@@ -41,7 +50,12 @@ export function BookingsView({ lessons: initialLessons }: { lessons: Lesson[] })
               <td className="py-2">{new Date(lesson.startAt).toLocaleString("nl-BE", { timeZone: "Europe/Brussels" })}</td>
               <td>{lesson.dossier.firstName} {lesson.dossier.lastName}</td>
               <td>{lesson.instructor.name}</td>
-              <td>{lesson.status}</td>
+              <td>
+                {lesson.status}
+                {cancelNotices[lesson.id] && (
+                  <span className="ml-2 block text-xs text-gray-500">{cancelNotices[lesson.id]}</span>
+                )}
+              </td>
               <td className="space-x-2">
                 <button onClick={() => handleAction(lesson.id, "confirm")} className="text-sm text-green-700">Bevestigen</button>
                 <button onClick={() => handleAction(lesson.id, "cancel")} className="text-sm text-red-700">Annuleren</button>
