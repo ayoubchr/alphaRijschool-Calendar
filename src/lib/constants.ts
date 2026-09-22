@@ -1,0 +1,1 @@
+export const LESSON_BLOCK_MINUTES = 120;
