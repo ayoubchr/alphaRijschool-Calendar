@@ -1,0 +1,144 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Transmission {
+  AUTOMAAT
+  MANUEEL
+  BOTH
+}
+
+enum LessonStatus {
+  PLANNED
+  CONFIRMED
+  CANCELLED
+  COMPLETED
+}
+
+enum PaymentStatus {
+  OPEN
+  PAID
+  FAILED
+  REFUNDED
+}
+
+enum PaymentType {
+  DEPOSIT
+  BALANCE
+}
+
+enum StaffRole {
+  ADMIN
+  INSTRUCTOR
+}
+
+model Package {
+  id              String   @id @default(cuid())
+  name            String
+  description     String
+  hours           Int
+  priceAutomaat   Int
+  priceManueel    Int
+  registrationFee Int
+  isSingleLesson  Boolean  @default(false)
+  active          Boolean  @default(true)
+  dossiers        Dossier[]
+  lessons         Lesson[]
+}
+
+model Instructor {
+  id                     String   @id @default(cuid())
+  name                   String
+  transmission           Transmission
+  active                 Boolean  @default(true)
+  availabilityRules      AvailabilityRule[]
+  availabilityExceptions AvailabilityException[]
+  lessons                Lesson[]
+  staffUsers             StaffUser[]
+}
+
+model AvailabilityRule {
+  id           String     @id @default(cuid())
+  instructorId String
+  instructor   Instructor @relation(fields: [instructorId], references: [id])
+  weekday      Int
+  startTime    String
+  endTime      String
+}
+
+model AvailabilityException {
+  id           String     @id @default(cuid())
+  instructorId String
+  instructor   Instructor @relation(fields: [instructorId], references: [id])
+  date         DateTime   @db.Date
+  startTime    String
+  endTime      String
+  isAvailable  Boolean    @default(false)
+}
+
+model Dossier {
+  id                     String    @id @default(cuid())
+  email                  String
+  firstName              String
+  lastName               String
+  phone                  String
+  address                String
+  dateOfBirth            DateTime  @db.Date
+  nationalRegisterNumber String?
+  packageId              String
+  package                Package   @relation(fields: [packageId], references: [id])
+  transmission           Transmission
+  hoursRemaining         Float
+  createdAt              DateTime  @default(now())
+  magicLinks             MagicLink[]
+  lessons                Lesson[]
+  payments               Payment[]
+}
+
+model MagicLink {
+  id        String    @id @default(cuid())
+  dossierId String
+  dossier   Dossier   @relation(fields: [dossierId], references: [id])
+  token     String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+}
+
+model Lesson {
+  id           String       @id @default(cuid())
+  dossierId    String
+  dossier      Dossier      @relation(fields: [dossierId], references: [id])
+  instructorId String
+  instructor   Instructor   @relation(fields: [instructorId], references: [id])
+  packageId    String
+  package      Package      @relation(fields: [packageId], references: [id])
+  startAt      DateTime
+  endAt        DateTime
+  status       LessonStatus @default(PLANNED)
+  createdAt    DateTime     @default(now())
+}
+
+model Payment {
+  id              String        @id @default(cuid())
+  dossierId       String
+  dossier         Dossier       @relation(fields: [dossierId], references: [id])
+  molliePaymentId String        @unique
+  amount          Int
+  type            PaymentType
+  status          PaymentStatus @default(OPEN)
+  createdAt       DateTime      @default(now())
+}
+
+model StaffUser {
+  id           String     @id @default(cuid())
+  email        String     @unique
+  passwordHash String
+  role         StaffRole
+  instructorId String?
+  instructor   Instructor? @relation(fields: [instructorId], references: [id])
+}
