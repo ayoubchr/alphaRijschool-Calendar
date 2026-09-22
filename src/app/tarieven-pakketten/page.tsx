@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { getActivePackages } from "@/lib/packages";
 
+export const dynamic = "force-dynamic";
+
 export default async function TarievenPakkettenPage() {
   const packages = await getActivePackages();
 

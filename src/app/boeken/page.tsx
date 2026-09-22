@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { PackageStep, type PackageDTO } from "./_components/PackageStep";
 import { TransmissionStep } from "./_components/TransmissionStep";
@@ -12,6 +12,14 @@ type Step = "package" | "transmission" | "calendar" | "details" | "summary";
 type Transmission = "AUTOMAAT" | "MANUEEL";
 
 export default function BookingWizardPage() {
+  return (
+    <Suspense fallback={<div className="mx-auto max-w-2xl px-6 py-12">Laden...</div>}>
+      <BookingWizard />
+    </Suspense>
+  );
+}
+
+function BookingWizard() {
   const searchParams = useSearchParams();
   const [step, setStep] = useState<Step>("package");
   const [selectedPackage, setSelectedPackage] = useState<PackageDTO | null>(null);
