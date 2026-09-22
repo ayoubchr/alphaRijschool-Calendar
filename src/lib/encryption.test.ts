@@ -16,4 +16,12 @@ describe("encryptField / decryptField", () => {
     const b = encryptField("85073003328");
     expect(a).not.toBe(b);
   });
+
+  it("throws when the ciphertext has been tampered with", () => {
+    const encrypted = encryptField("85073003328");
+    const [iv, authTag, data] = encrypted.split(":");
+    const tamperedData = data.slice(0, -2) + (data.slice(-2) === "00" ? "01" : "00");
+    const tampered = [iv, authTag, tamperedData].join(":");
+    expect(() => decryptField(tampered)).toThrow();
+  });
 });
