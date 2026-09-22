@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getPackageById, getSingleLessonPackage } from "@/lib/packages";
 import { depositAmount } from "@/lib/pricing";
@@ -73,7 +74,20 @@ export async function POST(request: NextRequest) {
       return dossier;
     });
     dossierId = result.id;
-  } catch {
+  } catch (error) {
+    // Prisma has no native concept of a Postgres EXCLUDE constraint, so it surfaces the raw
+    // driver error wrapped as a generic PrismaClientKnownRequestError (code P2039) whose message
+    // embeds the underlying Postgres SQLSTATE. 23P01 is exclusion_violation — the lesson-overlap
+    // constraint from the Lesson_no_overlap migration. Only that specific case is a real booking
+    // conflict; any other transaction failure (bad FK, connection loss, etc.) must not be
+    // reported to the client as "slot already booked", so it is re-thrown for normal 500 handling.
+    const isOverlapConflict =
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      error.code === "P2039" &&
+      error.message.includes("23P01");
+    if (!isOverlapConflict) {
+      throw error;
+    }
     return NextResponse.json({ error: "Dit lesmoment is ondertussen al bezet." }, { status: 409 });
   }
 

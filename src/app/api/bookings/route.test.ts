@@ -124,4 +124,37 @@ describe("POST /api/bookings", () => {
     const payments = await prisma.payment.findMany();
     expect(payments).toHaveLength(0);
   });
+
+  it("does not report a non-overlap transaction failure (bad instructorId FK) as a false 409", async () => {
+    process.env.ENCRYPTION_KEY = "1111111111111111111111111111111111111111111111111111111111111111".slice(0, 64);
+    const pkg = await prisma.package.create({
+      data: { name: "Losse Rijles", description: "x", hours: 2, priceAutomaat: 16000, priceManueel: 15000, registrationFee: 2500, isSingleLesson: true },
+    });
+
+    const { POST } = await import("./route");
+    const request = new Request("http://localhost/api/bookings", {
+      method: "POST",
+      body: JSON.stringify({
+        packageId: pkg.id,
+        transmission: "AUTOMAAT",
+        instructorId: "nonexistent-instructor-id",
+        slots: [{ startAt: "2026-10-01T09:00:00.000Z", endAt: "2026-10-01T11:00:00.000Z" }],
+        details: {
+          firstName: "Jan", lastName: "Jansen", email: "jan3@example.com",
+          phone: "0470000000", address: "Straat 1", dateOfBirth: "2000-01-01",
+        },
+      }),
+    });
+
+    // This is a foreign-key constraint violation (Prisma code P2003), not the lesson-overlap
+    // exclusion constraint (P2039 / Postgres 23P01) — the route re-throws it, and since these
+    // tests call the handler function directly (not through Next's request pipeline), that
+    // surfaces here as a rejected promise rather than a 409 JSON response.
+    await expect(POST(request as any)).rejects.toThrow(/Foreign key constraint/);
+
+    const dossiers = await prisma.dossier.findMany();
+    expect(dossiers).toHaveLength(0);
+    const payments = await prisma.payment.findMany();
+    expect(payments).toHaveLength(0);
+  });
 });
