@@ -38,4 +38,32 @@ describe("POST /api/webhooks/mollie", () => {
     const magicLink = await prisma.magicLink.findFirstOrThrow();
     expect(magicLink.dossierId).toBe(dossier.id);
   });
+
+  it("marks the payment FAILED and cancels planned lessons when the payment failed", async () => {
+    const { getPaymentStatus } = await import("@/lib/mollie");
+    vi.mocked(getPaymentStatus).mockResolvedValue({ status: "failed", metadata: {} });
+    const { sendBookingConfirmationEmail } = await import("@/lib/email");
+
+    const pkg = await prisma.package.create({
+      data: { name: "Losse Rijles", description: "x", hours: 2, priceAutomaat: 16000, priceManueel: 15000, registrationFee: 2500, isSingleLesson: true },
+    });
+    const instructor = await prisma.instructor.create({ data: { name: "Jan", transmission: "BOTH" } });
+    const dossier = await prisma.dossier.create({
+      data: { email: "jan@example.com", firstName: "Jan", lastName: "Jansen", phone: "0470000000", address: "x", dateOfBirth: new Date("2000-01-01"), packageId: pkg.id, transmission: "AUTOMAAT", hoursRemaining: 2 },
+    });
+    await prisma.lesson.create({ data: { dossierId: dossier.id, instructorId: instructor.id, packageId: pkg.id, startAt: new Date("2026-09-28T09:00:00Z"), endAt: new Date("2026-09-28T11:00:00Z"), status: "PLANNED" } });
+    await prisma.payment.create({ data: { dossierId: dossier.id, molliePaymentId: "tr_test", amount: 16000, type: "DEPOSIT", status: "OPEN" } });
+
+    const { POST } = await import("./route");
+    const form = new URLSearchParams({ id: "tr_test" });
+    const request = new Request("http://localhost/api/webhooks/mollie", { method: "POST", body: form });
+    const response = await POST(request as any);
+
+    expect(response.status).toBe(200);
+    const updatedPayment = await prisma.payment.findUniqueOrThrow({ where: { molliePaymentId: "tr_test" } });
+    expect(updatedPayment.status).toBe("FAILED");
+    const lesson = await prisma.lesson.findFirstOrThrow();
+    expect(lesson.status).toBe("CANCELLED");
+    expect(sendBookingConfirmationEmail).not.toHaveBeenCalled();
+  });
 });
