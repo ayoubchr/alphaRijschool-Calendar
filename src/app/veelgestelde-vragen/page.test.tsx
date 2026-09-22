@@ -5,6 +5,6 @@ import FaqPage from "./page";
 describe("FaqPage", () => {
   it("renders at least one question", () => {
     render(<FaqPage />);
-    expect(screen.getByText(/M12/)).toBeInTheDocument();
+    expect(screen.getByText(/6 uur verplichte rijlessen/)).toBeInTheDocument();
   });
 });
