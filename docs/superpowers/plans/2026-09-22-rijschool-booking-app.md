@@ -548,6 +548,7 @@ git commit -m "feat: add lesson overlap constraint and test database helpers"
 
 `prisma/seed.ts`:
 ```ts
+import "dotenv/config";
 import { PrismaClient } from "@prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { hash } from "bcryptjs";
