@@ -1,6 +1,7 @@
 "use client";
 
 import { type FormEvent, useState } from "react";
+import { isValidRijksregisternummer } from "@/lib/rijksregisternummer";
 
 export interface BookingDetails {
   firstName: string;
@@ -40,6 +41,10 @@ export function DetailsStep({ requiresNationalRegisterNumber, onSubmit, onBack }
     }
     if (requiresNationalRegisterNumber && !details.nationalRegisterNumber) {
       setError("Rijksregisternummer is verplicht voor dit pakket.");
+      return;
+    }
+    if (details.nationalRegisterNumber && !isValidRijksregisternummer(details.nationalRegisterNumber)) {
+      setError("Rijksregisternummer moet 11 cijfers bevatten (bv. 85.07.30-033.28).");
       return;
     }
 

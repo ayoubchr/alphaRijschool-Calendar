@@ -6,6 +6,9 @@ import { getPackageById, getSingleLessonPackage } from "@/lib/packages";
 import { depositAmount } from "@/lib/pricing";
 import { createDepositPayment } from "@/lib/mollie";
 import { encryptField } from "@/lib/encryption";
+import { validateRequestedSlot } from "@/lib/slotValidation";
+import { isValidRijksregisternummer, normalizeRijksregisternummer } from "@/lib/rijksregisternummer";
+import { LESSON_BLOCK_MINUTES } from "@/lib/constants";
 
 const bookingSchema = z.object({
   packageId: z.string().min(1),
@@ -19,7 +22,12 @@ const bookingSchema = z.object({
     phone: z.string().min(1),
     address: z.string().min(1),
     dateOfBirth: z.string().min(1),
-    nationalRegisterNumber: z.string().optional(),
+    nationalRegisterNumber: z
+      .string()
+      .optional()
+      .refine((value) => !value || isValidRijksregisternummer(value), {
+        message: "Ongeldig rijksregisternummer. Verwacht formaat: 11 cijfers, eventueel met punten/streepjes.",
+      }),
   }),
 });
 
@@ -35,10 +43,33 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Pakket niet gevonden." }, { status: 404 });
   }
 
+  // The total requested hours must fit within the chosen package's hours — otherwise a caller
+  // could request more lesson blocks than the package they're paying for actually includes.
+  const requestedHours = slots.length * (LESSON_BLOCK_MINUTES / 60);
+  if (requestedHours > pkg.hours) {
+    return NextResponse.json(
+      { error: "Het aantal gevraagde lesuren overschrijdt het gekozen pakket." },
+      { status: 400 }
+    );
+  }
+
+  for (const slot of slots) {
+    const validationError = await validateRequestedSlot({
+      instructorId,
+      transmission,
+      startAt: new Date(slot.startAt),
+      endAt: new Date(slot.endAt),
+    });
+    if (validationError) {
+      return NextResponse.json({ error: validationError.message }, { status: validationError.status });
+    }
+  }
+
   const singleLessonPkg = await getSingleLessonPackage();
   const amount = depositAmount(singleLessonPkg, transmission);
 
   let dossierId: string;
+  let createdLessonIds: string[];
   try {
     const result = await prisma.$transaction(async (tx) => {
       const dossier = await tx.dossier.create({
@@ -50,7 +81,7 @@ export async function POST(request: NextRequest) {
           address: details.address,
           dateOfBirth: new Date(details.dateOfBirth),
           nationalRegisterNumber: details.nationalRegisterNumber
-            ? encryptField(details.nationalRegisterNumber)
+            ? encryptField(normalizeRijksregisternummer(details.nationalRegisterNumber) ?? details.nationalRegisterNumber)
             : null,
           packageId: pkg.id,
           transmission,
@@ -58,8 +89,9 @@ export async function POST(request: NextRequest) {
         },
       });
 
+      const lessonIds: string[] = [];
       for (const slot of slots) {
-        await tx.lesson.create({
+        const lesson = await tx.lesson.create({
           data: {
             dossierId: dossier.id,
             instructorId,
@@ -69,11 +101,13 @@ export async function POST(request: NextRequest) {
             status: "PLANNED",
           },
         });
+        lessonIds.push(lesson.id);
       }
 
-      return dossier;
+      return { dossier, lessonIds };
     });
-    dossierId = result.id;
+    dossierId = result.dossier.id;
+    createdLessonIds = result.lessonIds;
   } catch (error) {
     // Prisma has no native concept of a Postgres EXCLUDE constraint, so it surfaces the raw
     // driver error wrapped as a generic PrismaClientKnownRequestError (code P2039) whose message
@@ -91,17 +125,33 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Dit lesmoment is ondertussen al bezet." }, { status: 409 });
   }
 
-  const payment = await createDepositPayment({
-    amountCents: amount,
-    description: `Voorschot ${pkg.name}`,
-    redirectUrl: `${process.env.APP_URL}/boeken/bevestiging?dossier=${dossierId}`,
-    webhookUrl: `${process.env.APP_URL}/api/webhooks/mollie`,
-    metadata: { dossierId },
-  });
+  try {
+    const payment = await createDepositPayment({
+      amountCents: amount,
+      description: `Voorschot ${pkg.name}`,
+      redirectUrl: `${process.env.APP_URL}/boeken/bevestiging?dossier=${dossierId}`,
+      webhookUrl: `${process.env.APP_URL}/api/webhooks/mollie`,
+      metadata: { dossierId },
+    });
 
-  await prisma.payment.create({
-    data: { dossierId, molliePaymentId: payment.id, amount, type: "DEPOSIT", status: "OPEN" },
-  });
+    await prisma.payment.create({
+      data: { dossierId, molliePaymentId: payment.id, amount, type: "DEPOSIT", status: "OPEN" },
+    });
 
-  return NextResponse.json({ checkoutUrl: payment.checkoutUrl });
+    return NextResponse.json({ checkoutUrl: payment.checkoutUrl });
+  } catch (error) {
+    // The dossier+lessons transaction already committed by this point. If Mollie payment
+    // creation fails here, those PLANNED lessons would otherwise have no associated Payment row
+    // and nothing would ever cancel them — they'd sit forever, permanently blocking that
+    // instructor's slot. Cancel them immediately so the slot frees back up, then surface a
+    // generic error to the client (they can retry the booking from scratch).
+    await prisma.lesson.updateMany({
+      where: { id: { in: createdLessonIds }, status: "PLANNED" },
+      data: { status: "CANCELLED" },
+    });
+    return NextResponse.json(
+      { error: "Er ging iets mis bij het starten van de betaling. Probeer het opnieuw." },
+      { status: 500 }
+    );
+  }
 }
