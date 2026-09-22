@@ -497,9 +497,11 @@ export async function resetDatabase(prisma: PrismaClient) {
 ```ts
 import { describe, it, expect, afterAll } from "vitest";
 import { PrismaClient } from "@prisma/client";
+import { PrismaPg } from "@prisma/adapter-pg";
 import { resetDatabase } from "./resetDatabase";
 
-const prisma = new PrismaClient();
+const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
+const prisma = new PrismaClient({ adapter });
 
 describe("resetDatabase", () => {
   afterAll(async () => {
@@ -547,9 +549,11 @@ git commit -m "feat: add lesson overlap constraint and test database helpers"
 `prisma/seed.ts`:
 ```ts
 import { PrismaClient } from "@prisma/client";
+import { PrismaPg } from "@prisma/adapter-pg";
 import { hash } from "bcryptjs";
 
-const prisma = new PrismaClient();
+const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
+const prisma = new PrismaClient({ adapter });
 
 async function main() {
   await prisma.package.createMany({
@@ -1132,10 +1136,16 @@ git commit -m "feat: add field-level encryption for sensitive personal data"
 `src/lib/prisma.ts`:
 ```ts
 import { PrismaClient } from "@prisma/client";
+import { PrismaPg } from "@prisma/adapter-pg";
 
 const globalForPrisma = globalThis as unknown as { prisma: PrismaClient | undefined };
 
-export const prisma = globalForPrisma.prisma ?? new PrismaClient();
+function createPrismaClient() {
+  const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
+  return new PrismaClient({ adapter });
+}
+
+export const prisma = globalForPrisma.prisma ?? createPrismaClient();
 
 if (process.env.NODE_ENV !== "production") {
   globalForPrisma.prisma = prisma;
