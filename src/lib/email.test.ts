@@ -28,5 +28,8 @@ describe("sendBookingConfirmationEmail", () => {
     const call = sendMock.mock.calls[0][0];
     expect(call.to).toBe("student@example.com");
     expect(call.text).toContain("https://app.test/dossier/abc123");
+    // Verify formatted lesson time appears (nl-BE locale includes date and time)
+    expect(call.text).toContain("2026");
+    expect(call.text).toContain("28/9/2026");
   });
 });
