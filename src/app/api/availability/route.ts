@@ -10,9 +10,13 @@ export async function GET(request: NextRequest) {
   const to = searchParams.get("to");
   const weekdayParam = searchParams.get("weekdays");
   const instructorId = searchParams.get("instructorId") ?? undefined;
+  const transmissionParam = searchParams.get("transmission") ?? undefined;
 
   if (!packageId || !from || !to) {
     return NextResponse.json({ error: "packageId, from en to zijn verplicht." }, { status: 400 });
+  }
+  if (transmissionParam && transmissionParam !== "AUTOMAAT" && transmissionParam !== "MANUEEL") {
+    return NextResponse.json({ error: "Ongeldige transmissie." }, { status: 400 });
   }
 
   const pkg = await prisma.package.findUnique({ where: { id: packageId } });
@@ -21,7 +25,14 @@ export async function GET(request: NextRequest) {
   }
 
   const instructors = await prisma.instructor.findMany({
-    where: instructorId ? { id: instructorId, active: true } : { active: true },
+    where: {
+      active: true,
+      ...(instructorId ? { id: instructorId } : {}),
+      // Only show instructors who can teach the requested transmission — an instructor whose
+      // `transmission` is fixed to AUTOMAAT or MANUEEL should never be offered to a student who
+      // chose the other one. Instructors marked BOTH always qualify.
+      ...(transmissionParam ? { transmission: { in: ["BOTH", transmissionParam] } } : {}),
+    },
     include: { availabilityRules: true, availabilityExceptions: true },
   });
 

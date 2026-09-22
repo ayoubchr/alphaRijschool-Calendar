@@ -20,7 +20,7 @@ beforeEach(() => {
 describe("CalendarStep", () => {
   it("loads slots and confirms the chosen one", async () => {
     const onConfirm = vi.fn();
-    render(<CalendarStep packageId="p1" onConfirm={onConfirm} onBack={vi.fn()} />);
+    render(<CalendarStep packageId="p1" transmission="MANUEEL" onConfirm={onConfirm} onBack={vi.fn()} />);
 
     await waitFor(() => expect(screen.getByText(/Kies eerste slot/)).toBeInTheDocument());
     fireEvent.click(screen.getByText(/Kies eerste slot/));
@@ -29,5 +29,13 @@ describe("CalendarStep", () => {
     expect(onConfirm).toHaveBeenCalledWith(
       expect.objectContaining({ instructorId: "i1", instructorName: "Jan" })
     );
+  });
+
+  it("forwards the chosen transmission to the availability request", async () => {
+    render(<CalendarStep packageId="p1" transmission="MANUEEL" onConfirm={vi.fn()} onBack={vi.fn()} />);
+
+    await waitFor(() => expect(global.fetch).toHaveBeenCalled());
+    const requestedUrl = (global.fetch as any).mock.calls[0][0] as string;
+    expect(requestedUrl).toContain("transmission=MANUEEL");
   });
 });

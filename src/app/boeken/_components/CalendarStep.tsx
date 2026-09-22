@@ -13,11 +13,12 @@ interface InstructorSlots {
 
 interface CalendarStepProps {
   packageId: string;
+  transmission: "AUTOMAAT" | "MANUEEL";
   onConfirm: (slot: BookingSlot) => void;
   onBack: () => void;
 }
 
-export function CalendarStep({ packageId, onConfirm, onBack }: CalendarStepProps) {
+export function CalendarStep({ packageId, transmission, onConfirm, onBack }: CalendarStepProps) {
   const [instructorSlots, setInstructorSlots] = useState<InstructorSlots[]>([]);
   const [selected, setSelected] = useState<BookingSlot | null>(null);
 
@@ -26,10 +27,12 @@ export function CalendarStep({ packageId, onConfirm, onBack }: CalendarStepProps
     const to = new Date();
     to.setDate(to.getDate() + 30);
 
-    fetch(`/api/availability?packageId=${packageId}&from=${from.toISOString()}&to=${to.toISOString()}`)
+    fetch(
+      `/api/availability?packageId=${packageId}&from=${from.toISOString()}&to=${to.toISOString()}&transmission=${transmission}`
+    )
       .then((res) => res.json())
       .then(setInstructorSlots);
-  }, [packageId]);
+  }, [packageId, transmission]);
 
   const allSlots: BookingSlot[] = instructorSlots.flatMap((entry) =>
     entry.slots.map((slot) => ({ ...slot, instructorId: entry.instructorId, instructorName: entry.instructorName }))

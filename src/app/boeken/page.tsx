@@ -53,6 +53,7 @@ function BookingWizard() {
       {step === "calendar" && selectedPackage && transmission && (
         <CalendarStep
           packageId={selectedPackage.id}
+          transmission={transmission}
           onConfirm={(chosenSlot) => {
             setSlot(chosenSlot);
             setStep("details");
