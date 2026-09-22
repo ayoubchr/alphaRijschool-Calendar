@@ -43,6 +43,18 @@ function toIsoDate(day: Date): string {
   return `${year}-${month}-${date}`;
 }
 
+/**
+ * Computes available lesson slots within a date range, respecting rules, exceptions, and bookings.
+ *
+ * IMPORTANT: Dates are compared by local calendar day (year/month/date in the server's local timezone),
+ * not by UTC day. Callers must ensure that `rangeStart`, `rangeEnd`, and any `AvailabilityException.date`
+ * strings represent the intended local calendar date. If dates are constructed from UTC timestamps,
+ * timezone offset may cause day-boundary mismatches (e.g., 2026-09-28T00:00:00 UTC might be 2026-09-27
+ * in the local calendar).
+ *
+ * @param params Query parameters
+ * @returns Array of available Slot objects
+ */
 export function computeAvailableSlots(params: {
   rules: AvailabilityRule[];
   exceptions: AvailabilityException[];
