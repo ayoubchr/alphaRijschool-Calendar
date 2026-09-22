@@ -3477,9 +3477,13 @@ git commit -m "feat: add admin availability management"
 
 `src/app/api/admin/lessons/[id]/route.test.ts`:
 ```ts
-import { describe, it, expect, beforeEach, afterAll } from "vitest";
+import { describe, it, expect, beforeEach, afterAll, vi } from "vitest";
 import { prisma } from "@/lib/prisma";
 import { resetDatabase } from "@/test/resetDatabase";
+
+vi.mock("@/lib/auth", () => ({
+  auth: vi.fn().mockResolvedValue({ user: { role: "ADMIN" } }),
+}));
 
 beforeEach(() => resetDatabase(prisma));
 afterAll(() => prisma.$disconnect());
@@ -3518,6 +3522,15 @@ describe("PATCH /api/admin/lessons/[id]", () => {
     const body = await response.json();
     expect(body.refundEligible).toBe(false);
   });
+
+  it("rejects an unauthenticated request", async () => {
+    const { auth } = await import("@/lib/auth");
+    vi.mocked(auth).mockResolvedValueOnce(null as any);
+    const lesson = await setupLesson(new Date(Date.now() + 7 * 24 * 3600_000));
+    const { PATCH } = await import("./route");
+    const response = await PATCH(new Request("http://localhost", { method: "PATCH", body: JSON.stringify({ action: "confirm" }) }) as any, { params: { id: lesson.id } });
+    expect(response.status).toBe(401);
+  });
 });
 ```
 
@@ -3531,6 +3544,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { canCancelWithRefund } from "@/lib/cancellation";
+import { auth } from "@/lib/auth";
 
 const schema = z.discriminatedUnion("action", [
   z.object({ action: z.literal("confirm") }),
@@ -3539,6 +3553,11 @@ const schema = z.discriminatedUnion("action", [
 ]);
 
 export async function PATCH(request: NextRequest, { params }: { params: { id: string } }) {
+  const session = await auth();
+  if (!session) {
+    return NextResponse.json({ error: "Niet aangemeld." }, { status: 401 });
+  }
+
   const lesson = await prisma.lesson.findUnique({ where: { id: params.id } });
   if (!lesson) {
     return NextResponse.json({ error: "Les niet gevonden." }, { status: 404 });
