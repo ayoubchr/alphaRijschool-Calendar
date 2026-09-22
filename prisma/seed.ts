@@ -1,4 +1,5 @@
 import "dotenv/config";
+import { randomBytes } from "crypto";
 import { PrismaClient } from "@prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { hash } from "bcryptjs";
@@ -30,12 +31,19 @@ async function main() {
     })).concat([{ instructorId: instructor.id, weekday: 6, startTime: "09:00", endTime: "13:00" }]),
   });
 
-  const passwordHash = await hash("changeme123", 10);
+  // Generate a random password each time the seed runs, rather than shipping a fixed,
+  // publicly-documented default (e.g. "changeme123") that would otherwise sit unchanged in
+  // every dev/staging database until someone remembers to rotate it.
+  const generatedPassword = randomBytes(9).toString("base64url");
+  const passwordHash = await hash(generatedPassword, 10);
   await prisma.staffUser.create({
     data: { email: "beheerder@alpha-rijschool.be", passwordHash, role: "ADMIN" },
   });
 
-  console.log("Seed klaar. Standaard beheerder-wachtwoord: changeme123 (wijzig dit voor productie).");
+  console.log("Seed klaar.");
+  console.log(`Beheerder-account: beheerder@alpha-rijschool.be`);
+  console.log(`Gegenereerd wachtwoord: ${generatedPassword}`);
+  console.log("Bewaar dit wachtwoord nu (bv. in een password manager) — het wordt niet opnieuw getoond.");
 }
 
 main().finally(() => prisma.$disconnect());
