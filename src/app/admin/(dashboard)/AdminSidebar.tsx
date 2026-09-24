@@ -4,28 +4,16 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { IconType } from "react-icons";
-import {
-  IoBarChartOutline,
-  IoCalendarOutline,
-  IoClipboardOutline,
-  IoFolderOpenOutline,
-  IoLogOutOutline,
-  IoTimeOutline,
-} from "react-icons/io5";
+import { IoCalendarOutline, IoLogOutOutline, IoTimeOutline } from "react-icons/io5";
 import { logout } from "./actions";
 
 const LINKS: { href: string; label: string; icon: IconType }[] = [
   { href: "/admin/agenda", label: "Agenda", icon: IoCalendarOutline },
   { href: "/admin/beschikbaarheid", label: "Beschikbaarheid", icon: IoTimeOutline },
-  { href: "/admin/boekingen", label: "Boekingen", icon: IoClipboardOutline },
-  { href: "/admin/dossiers", label: "Dossiers", icon: IoFolderOpenOutline },
 ];
 
-const RAPPORT_LINK = { href: "/admin/rapport", label: "Rapport", icon: IoBarChartOutline };
-
-export function AdminSidebar({ isAdmin }: { isAdmin: boolean }) {
+export function AdminSidebar() {
   const pathname = usePathname();
-  const links = isAdmin ? [...LINKS, RAPPORT_LINK] : LINKS;
 
   return (
     <aside className="flex w-full shrink-0 flex-col bg-[#111827] text-white md:min-h-screen md:w-64">
@@ -48,7 +36,7 @@ export function AdminSidebar({ isAdmin }: { isAdmin: boolean }) {
       </div>
 
       <nav className="flex flex-1 flex-col gap-1 px-4 py-5" aria-label="Beheer">
-        {links.map((link) => {
+        {LINKS.map((link) => {
           const active = pathname === link.href || pathname.startsWith(`${link.href}/`);
           const Icon = link.icon;
           return (
@@ -70,7 +58,7 @@ export function AdminSidebar({ isAdmin }: { isAdmin: boolean }) {
       <form action={logout} className="p-4">
         <button
           type="submit"
-          className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#ed1c24]/60 px-3 py-2.5 text-sm font-semibold text-white transition hover:bg-[#c4161d]/50"
+          className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#ed1c24] px-3 py-2.5 text-sm font-semibold text-white transition hover:bg-[#c4161d]/95"
         >
           <IoLogOutOutline className="h-[18px] w-[18px]" aria-hidden />
           Uitloggen

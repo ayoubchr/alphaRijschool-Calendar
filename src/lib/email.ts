@@ -20,7 +20,8 @@ export async function sendContactMessage(params: {
   const resend = getResendClient();
   await resend.emails.send({
     from: "Alpha Rijschool <inschrijvingen@alpha-rijschool.be>",
-    to: "rijschoolalpha@gmail.com",
+    to: "ziani_nabil@outlook.com",
+    //to: "rijschoolalpha@gmail.com",
     subject: `Contactformulier: ${params.name}`,
     text: [
       `Naam: ${params.name}`,

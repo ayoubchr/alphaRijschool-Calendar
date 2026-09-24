@@ -24,7 +24,7 @@ export async function createDepositPayment(params: {
     description: params.description,
     redirectUrl: params.redirectUrl,
     webhookUrl: params.webhookUrl,
-    method: PaymentMethod.bancontact,
+    method: [PaymentMethod.bancontact],
     metadata: params.metadata,
   });
   return { id: payment.id, checkoutUrl: payment.getCheckoutUrl() ?? "" };

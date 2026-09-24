@@ -19,7 +19,7 @@ export default function BevestigingPage({
         {dossier ? ` (Referentie: ${dossier})` : null}
       </p>
       <Link href="/" className="btn-primary">
-        Terug naar de homepage
+        Terug naar de homepagina
       </Link>
     </div>
   );

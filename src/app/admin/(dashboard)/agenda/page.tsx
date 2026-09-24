@@ -9,12 +9,23 @@ export default async function AdminAgendaPage() {
 
   const lessons = await prisma.lesson.findMany({
     where: {
-      status: "CONFIRMED",
+      status: { in: ["PLANNED", "CONFIRMED"] },
       ...(role === "INSTRUCTOR" ? { instructorId } : {}),
     },
     include: { dossier: true, instructor: true },
     orderBy: { startAt: "asc" },
   });
 
-  return <AgendaView lessons={lessons} />;
+  return (
+    <AgendaView
+      lessons={lessons.map((lesson) => ({
+        id: lesson.id,
+        startAt: lesson.startAt.toISOString(),
+        endAt: lesson.endAt.toISOString(),
+        status: lesson.status,
+        dossier: { firstName: lesson.dossier.firstName, lastName: lesson.dossier.lastName },
+        instructor: { name: lesson.instructor.name },
+      }))}
+    />
+  );
 }
