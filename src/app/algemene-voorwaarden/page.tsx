@@ -132,8 +132,8 @@ const ARTICLES: { title: string; intro?: string; items: string[] }[] = [
 export default function AlgemeneVoorwaardenPage() {
   return (
     <div>
-      <section className="bg-[#111827] px-6 py-20 text-center text-white md:py-28">
-        <h1 className="text-4xl font-bold uppercase text-white md:text-5xl">Algemene voorwaarden</h1>
+      <section className="border-b border-black/5 bg-white px-6 py-14 text-center">
+        <h1 className="text-4xl font-extrabold text-brand-navy md:text-5xl">Algemene voorwaarden</h1>
       </section>
       <article className="mx-auto max-w-3xl space-y-8 px-6 py-16 leading-relaxed text-[#58595b]">
         {ARTICLES.map((article) => (

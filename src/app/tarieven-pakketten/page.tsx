@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Graduates } from "@/components/Graduates";
+import { PageIntro } from "@/components/PageIntro";
 import { formatEuro } from "@/lib/money";
 import { getActivePackages } from "@/lib/packages";
 
@@ -45,20 +46,20 @@ export default async function TarievenPakkettenPage() {
 
   return (
     <div>
-      <section className="bg-[#111827] px-6 py-20 text-center text-white md:py-28">
-        <h1 className="text-4xl font-bold uppercase text-white md:text-5xl">Tarieven + Pakketten</h1>
-        <p className="mx-auto mt-6 max-w-3xl text-lg font-light md:text-xl">
-          Kies het praktijk- of theoriepakket dat bij je traject past. De prijzen voor automaat en manueel staan per
-          pakket.
-        </p>
-      </section>
+      <PageIntro
+        eyebrow="Praktijk en theorie"
+        title="Tarieven + Pakketten"
+        description="Kies het pakket dat bij je traject past. De prijzen voor automaat en manueel staan per pakket, en je schrijft je meteen online in."
+        imageSrc="/illustraties/hero-rijles.png"
+        imageAlt="Lesauto met instructeur en leerling"
+      />
 
       <section className="mx-auto max-w-6xl px-6 py-16">
         <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
           {packages.map((pkg) => {
             const copy = PACKAGE_COPY[pkg.name];
             return (
-              <div key={pkg.id} className="flex flex-col rounded-[10px] border border-black/10 bg-white p-6 shadow-sm">
+              <div key={pkg.id} className="flex flex-col rounded-2xl border border-black/5 bg-white p-6 shadow-[0_10px_30px_rgba(20,20,26,0.06)]">
                 <h2 className="text-lg font-bold">{pkg.name}</h2>
                 <p className="mt-2 text-sm font-semibold text-[#ed1c24]">{copy?.tagline ?? pkg.description}</p>
                 <p className="mt-2 flex-1 text-sm leading-relaxed text-[#58595b]">{copy?.text ?? pkg.description}</p>
@@ -76,10 +77,7 @@ export default async function TarievenPakkettenPage() {
                     <span className="font-semibold">+ {formatEuro(pkg.registrationFee)}</span>
                   </div>
                 </div>
-                <Link
-                  href={`/boeken?package=${pkg.id}`}
-                  className="rounded-[10px] bg-[#ed1c24] px-5 py-2 text-center text-sm font-semibold text-white transition hover:bg-[#111827]"
-                >
+                <Link href={`/boeken?package=${pkg.id}`} className="btn-primary">
                   Schrijf je nu in
                 </Link>
               </div>

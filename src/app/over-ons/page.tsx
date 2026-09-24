@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { PageIntro } from "@/components/PageIntro";
 
 const PILLARS = [
   {
@@ -41,13 +42,20 @@ const REASONS = [
 export default function OverOnsPage() {
   return (
     <div>
-      <section className="bg-[#111827] px-6 py-20 text-center text-white md:py-28">
-        <h1 className="text-4xl font-bold uppercase text-white md:text-5xl">Over ons</h1>
-        <p className="mx-auto mt-6 max-w-3xl text-lg font-light md:text-xl">
-          Wij bieden méér dan alleen rijlessen. Met aandacht en passie begeleiden we je om uit te groeien tot een
-          zelfverzekerde en verantwoordelijke bestuurder.
-        </p>
-      </section>
+      <PageIntro
+        eyebrow="Alpha Rijschool"
+        title="Over ons"
+        description="Wij bieden méér dan alleen rijlessen. Met aandacht en passie begeleiden we je om uit te groeien tot een zelfverzekerde en verantwoordelijke bestuurder."
+        imageSrc="/illustraties/hero-rijles.png"
+        imageAlt="Instructeur begeleidt een leerling tijdens een rijles"
+      >
+        <Link href="/boeken" className="btn-primary">
+          Boek een les
+        </Link>
+        <Link href="/contact" className="btn-outline">
+          Contact
+        </Link>
+      </PageIntro>
 
       <section className="mx-auto max-w-3xl px-6 py-16 text-center">
         <p className="text-lg leading-relaxed text-[#58595b]">
@@ -74,7 +82,7 @@ export default function OverOnsPage() {
 
       <section className="px-6 py-16">
         <div className="mx-auto max-w-6xl">
-          <h2 className="mb-8 text-center text-3xl font-extrabold">Waarom kiezen voor Alpha Rijschool?</h2>
+          <h2 className="mb-8 text-center text-3xl font-extrabold text-brand-navy">Waarom kiezen voor Alpha Rijschool?</h2>
           <div className="grid gap-6 sm:grid-cols-2">
             {REASONS.map((item) => (
               <article key={item.title} className="rounded-[10px] border border-black/10 p-6">
@@ -86,22 +94,16 @@ export default function OverOnsPage() {
         </div>
       </section>
 
-      <section className="bg-[#111827] px-6 py-16 text-center text-white">
+      <section className="bg-brand-navy px-6 py-16 text-center text-white">
         <h2 className="text-3xl font-bold text-white md:text-4xl">Klaar om te beginnen?</h2>
         <p className="mx-auto mt-4 max-w-2xl text-lg font-light">
           Neem vandaag nog contact met ons op en start je reis naar het behalen van je rijbewijs.
         </p>
         <div className="mt-8 flex flex-col items-center justify-center gap-4 sm:flex-row">
-          <Link
-            href="/contact"
-            className="inline-flex h-11 w-44 items-center justify-center rounded-[10px] bg-[#ed1c24] font-medium text-white transition hover:bg-white hover:text-[#111827]"
-          >
+          <Link href="/contact" className="btn-primary">
             Contact opnemen
           </Link>
-          <Link
-            href="/tarieven-pakketten"
-            className="inline-flex h-11 w-44 items-center justify-center rounded-[10px] bg-white font-medium text-[#ed1c24] transition hover:bg-[#111827] hover:text-white"
-          >
+          <Link href="/tarieven-pakketten" className="inline-flex h-11 items-center justify-center rounded-full bg-white px-6 text-sm font-semibold text-brand-red transition hover:bg-white/90">
             Meer informatie
           </Link>
         </div>

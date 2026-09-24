@@ -24,7 +24,7 @@ export function DossierView({ dossier, token }: { dossier: DossierData; token: s
 
   return (
     <div className="mx-auto max-w-2xl px-6 py-12">
-      <h1 className="mb-2 text-2xl font-bold">Welkom terug, {dossier.firstName}</h1>
+      <h1 className="mb-2 text-2xl font-extrabold text-brand-navy">Welkom terug, {dossier.firstName}</h1>
       <p className="mb-6 text-gray-600">
         Pakket: {dossier.package.name} &mdash; resterend tegoed: {dossier.hoursRemaining} uur
       </p>

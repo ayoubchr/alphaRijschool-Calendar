@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
+import { PageIntro } from "@/components/PageIntro";
 import { ContactForm } from "./ContactForm";
 
 const MAP_URL =
@@ -22,16 +23,21 @@ function InfoCard({ title, icon, children }: { title: string; icon: ReactNode; c
 export default function ContactPage() {
   return (
     <div className="bg-[#f9f9f9]">
-      <section className="bg-[#111827] px-6 py-20 text-center text-white md:py-28">
-        <h1 className="text-4xl font-bold uppercase text-white md:text-5xl">Contacteer ons</h1>
-        <p className="mx-auto mt-6 max-w-2xl text-lg font-light md:text-xl">
-          Vragen? We horen graag van je! Stuur ons een bericht en we reageren zo snel mogelijk.
-        </p>
-      </section>
+      <PageIntro
+        eyebrow="We helpen je graag"
+        title="Contact"
+        description="Vragen? Stuur ons een bericht, of plan meteen een les via de boekingspagina."
+        imageSrc="/illustraties/hero-contact.png"
+        imageAlt="Onthaal van de rijschool met agenda en lesauto"
+      >
+        <Link href="/boeken" className="btn-primary">
+          Boek een les
+        </Link>
+      </PageIntro>
 
       <section className="mx-auto grid max-w-6xl items-start gap-10 px-6 py-16 lg:grid-cols-2">
         <div className="space-y-4">
-          <h2 className="text-3xl font-extrabold text-[#111827]">We helpen je graag verder</h2>
+          <h2 className="text-3xl font-extrabold text-brand-navy">We helpen je graag verder</h2>
           <p className="leading-relaxed text-[#58595b]">
             Bel, mail of stuur een bericht. Je kan ook meteen een les inplannen via{" "}
             <Link href="/boeken" className="font-semibold text-[#ed1c24] underline">

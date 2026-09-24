@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { type ReactNode, useState } from "react";
+import { PageIntro } from "@/components/PageIntro";
 
 const faqs: { q: string; a: ReactNode }[] = [
   {
@@ -95,9 +96,13 @@ export default function FaqPage() {
 
   return (
     <div>
-      <section className="bg-[#111827] px-6 py-20 text-center text-white md:py-28">
-        <h1 className="text-4xl font-bold uppercase text-white md:text-5xl">Veelgestelde vragen</h1>
-      </section>
+      <PageIntro
+        eyebrow="Hulp bij je keuze"
+        title="Veelgestelde vragen"
+        description="Antwoorden over M12, stageattesten, verplichte uren en hoe je je inschrijft."
+        imageSrc="/illustraties/hero-theorie.png"
+        imageAlt="Theorieles met verkeersborden"
+      />
       <section className="mx-auto max-w-3xl px-6 py-16">
         <div className="divide-y divide-black/10 rounded-[10px] border border-black/10 bg-white px-5">
           {faqs.map((faq, index) => {

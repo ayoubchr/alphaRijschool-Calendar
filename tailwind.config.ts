@@ -13,9 +13,9 @@ const config: Config = {
         foreground: "var(--foreground)",
         brand: {
           red: "#ed1c24",
-          navy: "#111827",
-          gray: "#58595b",
-          mist: "#f9f9f9",
+          navy: "#14141a",
+          gray: "#55555f",
+          mist: "#f4f5f7",
         },
       },
     },

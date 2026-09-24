@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { Suspense, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { PackageStep, type PackageDTO } from "./_components/PackageStep";
@@ -31,8 +32,24 @@ function BookingWizard() {
   const didApplyPreselect = useRef(false);
 
   return (
-    <div className="mx-auto max-w-5xl px-6 py-12">
-      <ol className="mb-8 flex flex-wrap gap-2 text-xs font-bold uppercase tracking-wide text-[#58595b]">
+    <div className="mx-auto max-w-5xl px-4 py-10 sm:px-6">
+      <div className="mb-8 grid items-center gap-4 md:grid-cols-[1fr_220px]">
+        <div>
+          <p className="text-sm font-semibold uppercase tracking-[0.16em] text-brand-red">Online inschrijven</p>
+          <h1 className="mt-2 text-3xl font-extrabold text-brand-navy md:text-4xl">Boek je les</h1>
+          <p className="mt-2 max-w-xl text-brand-gray">
+            Kies een pakket, een moment en betaal je voorschot. Je plek is pas vast na betaling.
+          </p>
+        </div>
+        <Image
+          src="/illustraties/hero-contact.png"
+          alt=""
+          width={640}
+          height={360}
+          className="hidden h-auto w-full md:block"
+        />
+      </div>
+      <ol className="mb-8 flex flex-wrap gap-2 text-xs font-bold uppercase tracking-wide text-brand-gray">
         {(
           [
             ["package", "Pakket"],

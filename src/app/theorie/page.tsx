@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Graduates } from "@/components/Graduates";
+import { PageIntro } from "@/components/PageIntro";
 
 const REASONS = [
   "Examencentrum-getrouw toetsingssysteem voor optimale voorbereiding",
@@ -12,16 +13,22 @@ const REASONS = [
 export default function TheoriePage() {
   return (
     <div>
-      <section className="bg-[#111827] px-6 py-20 text-center text-white md:py-28">
-        <h1 className="text-4xl font-bold uppercase text-white md:text-5xl">Theorie</h1>
-        <p className="mx-auto mt-6 max-w-3xl text-lg font-light md:text-xl">
-          Uitgebreide voorbereiding op je theorie-examen
-        </p>
-      </section>
+      <PageIntro
+        eyebrow="12 uur · 3 dagen"
+        title="Theorie"
+        description="Uitgebreide voorbereiding op je theorie-examen, in het Nederlands en met veel oefenvragen."
+        imageSrc="/illustraties/hero-theorie.png"
+        imageAlt="Theorieles met verkeersborden en leerlingen"
+        priority
+      >
+        <Link href="/boeken" className="btn-primary">
+          Schrijf je in
+        </Link>
+      </PageIntro>
 
       <section className="mx-auto grid max-w-6xl gap-8 px-6 py-16 lg:grid-cols-[1.1fr_0.9fr]">
         <div>
-          <h2 className="text-3xl font-extrabold">Theorieles Pakket (12 uur)</h2>
+          <h2 className="text-3xl font-extrabold text-brand-navy">Theorieles</h2>
           <p className="mt-4 text-lg leading-relaxed text-[#58595b]">
             Dit pakket van 12 uur biedt uitgebreide theorielessen om je voor te bereiden op het theorie-examen.
             De lessen zijn in het Nederlands en verdeeld over 3 dagen.
@@ -29,11 +36,8 @@ export default function TheoriePage() {
           <p className="mt-4 text-[#58595b]">
             De inschrijvingskosten van €25 zijn verplicht bij elk pakket en dekken de administratieve kosten.
           </p>
-          <Link
-            href="/boeken"
-            className="mt-8 inline-flex h-11 items-center justify-center rounded-[10px] bg-[#ed1c24] px-6 font-medium text-white transition hover:bg-[#111827]"
-          >
-            Schrijf je nu in
+          <Link href="/boeken" className="btn-primary mt-8">
+            Aanmelden
           </Link>
         </div>
         <div className="rounded-[10px] border border-black/10 bg-[#f9f9f9] p-6">
@@ -56,7 +60,7 @@ export default function TheoriePage() {
 
       <section className="bg-[#f9f9f9] px-6 py-16">
         <div className="mx-auto max-w-3xl">
-          <h2 className="text-3xl font-extrabold">Waarom theorie bij Rijschool Alpha?</h2>
+          <h2 className="text-3xl font-extrabold text-brand-navy">Waarom theorie bij Rijschool Alpha?</h2>
           <ul className="mt-6 space-y-3">
             {REASONS.map((reason) => (
               <li key={reason} className="flex gap-3 text-[#58595b]">
@@ -73,7 +77,7 @@ export default function TheoriePage() {
       </section>
 
       <section className="mx-auto max-w-3xl px-6 py-16">
-        <h2 className="text-3xl font-extrabold">Theorie-attest</h2>
+        <h2 className="text-3xl font-extrabold text-brand-navy">Theorie-attest</h2>
         <p className="mt-4 leading-relaxed text-[#58595b]">
           Ben je 2 keer niet geslaagd voor het theorie-examen? Dan moet je de verplichte 12 uur theorielessen volgen.
           Bij Rijschool Alpha ben je op het juiste adres om te slagen voor je theorie-examen.
@@ -82,10 +86,7 @@ export default function TheoriePage() {
           Tijdens onze 12 uur theorieles (verdeeld over 3 dagen) leer je op een leuke, gemakkelijk te begrijpen manier
           alle theoriestof die nodig is om te kunnen slagen.
         </p>
-        <Link
-          href="/boeken"
-          className="mt-8 inline-flex h-11 items-center justify-center rounded-[10px] bg-[#ed1c24] px-6 font-semibold text-white transition hover:bg-[#111827]"
-        >
+        <Link href="/boeken" className="btn-primary mt-8">
           Schrijf je in voor theorie
         </Link>
       </section>

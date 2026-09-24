@@ -9,7 +9,7 @@ export function Graduates() {
   return (
     <section className="bg-[#f9f9f9] px-6 py-16" aria-labelledby="geslaagden-titel">
       <div className="mx-auto max-w-6xl">
-        <h2 id="geslaagden-titel" className="text-center text-3xl font-extrabold">
+        <h2 id="geslaagden-titel" className="text-center text-3xl font-extrabold text-brand-navy">
           Onze geslaagden
         </h2>
         <p className="mt-2 text-center text-sm text-[#58595b]">Swipe om meer foto&apos;s te zien van onze trotse geslaagden</p>

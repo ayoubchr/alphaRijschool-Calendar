@@ -1,12 +1,13 @@
 import "./globals.css";
 
-import { Roboto } from "next/font/google";
+import { Poppins } from "next/font/google";
 import { SiteChrome } from "@/components/SiteChrome";
 import type { Metadata } from "next";
 
-const roboto = Roboto({
+const poppins = Poppins({
   subsets: ["latin"],
-  weight: ["300", "400", "500", "700"],
+  weight: ["400", "500", "600", "700", "800"],
+  display: "swap",
 });
 
 export const metadata: Metadata = {
@@ -17,7 +18,7 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="nl">
-      <body className={`${roboto.className} flex min-h-screen flex-col`}>
+      <body className={`${poppins.className} flex min-h-screen flex-col`}>
         <SiteChrome>{children}</SiteChrome>
       </body>
     </html>
