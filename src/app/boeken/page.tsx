@@ -94,6 +94,7 @@ function BookingWizard() {
       {step === "details" && selectedPackage && (
         <DetailsStep
           requiresNationalRegisterNumber={!selectedPackage.isSingleLesson}
+          initialValues={details}
           onSubmit={(d) => {
             setDetails(d);
             setStep("summary");
