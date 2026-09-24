@@ -53,20 +53,23 @@ export function DetailsStep({ requiresNationalRegisterNumber, onSubmit, onBack }
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-      <h1 className="mb-2 text-2xl font-bold">Jouw gegevens</h1>
-      {error && <p className="text-sm text-red-600">{error}</p>}
-      <input name="firstName" placeholder="Voornaam" required className="w-full rounded border p-3" />
-      <input name="lastName" placeholder="Familienaam" required className="w-full rounded border p-3" />
-      <input name="email" type="email" placeholder="E-mailadres" required className="w-full rounded border p-3" />
-      <input name="phone" placeholder="Telefoonnummer" required className="w-full rounded border p-3" />
-      <input name="address" placeholder="Adres" required className="w-full rounded border p-3" />
-      <input name="dateOfBirth" type="date" required className="w-full rounded border p-3" />
+      <h1 className="mb-2 text-2xl font-extrabold text-[#111827]">Jouw gegevens</h1>
+      {error && <p className="text-sm text-[#ed1c24]">{error}</p>}
+      <input name="firstName" placeholder="Voornaam" required className="w-full rounded-[10px] border border-black/10 px-3 py-3" />
+      <input name="lastName" placeholder="Familienaam" required className="w-full rounded-[10px] border border-black/10 px-3 py-3" />
+      <input name="email" type="email" placeholder="E-mailadres" required className="w-full rounded-[10px] border border-black/10 px-3 py-3" />
+      <input name="phone" placeholder="Telefoonnummer" required className="w-full rounded-[10px] border border-black/10 px-3 py-3" />
+      <input name="address" placeholder="Adres" required className="w-full rounded-[10px] border border-black/10 px-3 py-3" />
+      <label className="block text-sm font-medium text-[#58595b]">
+        Geboortedatum
+        <input name="dateOfBirth" type="date" required className="mt-1 w-full rounded-[10px] border border-black/10 px-3 py-3" />
+      </label>
       {requiresNationalRegisterNumber && (
-        <input name="nationalRegisterNumber" placeholder="Rijksregisternummer" className="w-full rounded border p-3" />
+        <input name="nationalRegisterNumber" placeholder="Rijksregisternummer" className="w-full rounded-[10px] border border-black/10 px-3 py-3" />
       )}
       <div className="flex justify-between pt-4">
         <button type="button" onClick={onBack} className="text-sm text-gray-500">&larr; Terug</button>
-        <button type="submit" className="rounded-full bg-red-600 px-6 py-3 font-semibold text-white">Volgende</button>
+        <button type="submit" className="rounded-[10px] bg-[#ed1c24] px-6 py-3 font-semibold text-white transition hover:bg-[#111827]">Volgende</button>
       </div>
     </form>
   );

@@ -10,6 +10,29 @@ export function magicLinkUrlFor(token: string) {
   return `${process.env.APP_URL}/dossier/${token}`;
 }
 
+export async function sendContactMessage(params: {
+  name: string;
+  email: string;
+  phone: string;
+  message: string;
+  subject: string;
+}) {
+  const resend = getResendClient();
+  await resend.emails.send({
+    from: "Alpha Rijschool <inschrijvingen@alpha-rijschool.be>",
+    to: "rijschoolalpha@gmail.com",
+    subject: `Contactformulier: ${params.name}`,
+    text: [
+      `Naam: ${params.name}`,
+      `E-mail: ${params.email}`,
+      `Telefoon: ${params.phone}`,
+      `Onderwerp: ${params.subject}`,
+      "",
+      params.message,
+    ].join("\n"),
+  });
+}
+
 export async function sendBookingConfirmationEmail(params: {
   to: string;
   dossierName: string;

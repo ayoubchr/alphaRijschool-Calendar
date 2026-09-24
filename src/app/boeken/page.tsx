@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useState } from "react";
+import { Suspense, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { PackageStep, type PackageDTO } from "./_components/PackageStep";
 import { TransmissionStep } from "./_components/TransmissionStep";
@@ -13,7 +13,7 @@ type Transmission = "AUTOMAAT" | "MANUEEL";
 
 export default function BookingWizardPage() {
   return (
-    <Suspense fallback={<div className="mx-auto max-w-2xl px-6 py-12">Laden...</div>}>
+    <Suspense fallback={<div className="flex min-h-[40vh] items-center justify-center"><div className="h-10 w-10 animate-spin rounded-full border-4 border-[#ed1c24]/20 border-t-[#ed1c24]" /></div>}>
       <BookingWizard />
     </Suspense>
   );
@@ -28,14 +28,44 @@ function BookingWizard() {
   const [details, setDetails] = useState<BookingDetails | null>(null);
 
   const preselectedPackageId = searchParams.get("package");
+  const didApplyPreselect = useRef(false);
 
   return (
-    <div className="mx-auto max-w-2xl px-6 py-12">
+    <div className="mx-auto max-w-5xl px-6 py-12">
+      <ol className="mb-8 flex flex-wrap gap-2 text-xs font-bold uppercase tracking-wide text-[#58595b]">
+        {(
+          [
+            ["package", "Pakket"],
+            ["transmission", "Transmissie"],
+            ["calendar", "Moment"],
+            ["details", "Gegevens"],
+            ["summary", "Bevestigen"],
+          ] as const
+        ).map(([id, label], index) => (
+          <li
+            key={id}
+            className={`rounded-full px-3 py-1 ${step === id ? "bg-[#ed1c24] text-white" : "bg-[#f9f9f9]"}`}
+            aria-current={step === id ? "step" : undefined}
+          >
+            {index + 1}. {label}
+          </li>
+        ))}
+      </ol>
       {step === "package" && (
         <PackageStep
-          preselectedPackageId={preselectedPackageId}
+          selectedPackageId={selectedPackage?.id ?? null}
+          onPackagesLoaded={(packages) => {
+            if (didApplyPreselect.current || !preselectedPackageId) return;
+            const match = packages.find((pkg) => pkg.id === preselectedPackageId);
+            if (!match) return;
+            didApplyPreselect.current = true;
+            setSelectedPackage(match);
+            setStep("transmission");
+          }}
           onSelect={(pkg) => {
             setSelectedPackage(pkg);
+            setTransmission(null);
+            setSlot(null);
             setStep("transmission");
           }}
         />

@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 import type { PackageDTO } from "./PackageStep";
 import type { BookingSlot } from "./CalendarStep";
@@ -46,15 +47,24 @@ export function SummaryStep({ selectedPackage, transmission, slot, details, onBa
 
   return (
     <div>
-      <h1 className="mb-6 text-2xl font-bold">Samenvatting</h1>
-      <p><strong>Pakket:</strong> {selectedPackage.name} ({transmission === "AUTOMAAT" ? "automaat" : "manueel"})</p>
-      <p><strong>Lesmoment:</strong> {new Date(slot.startAt).toLocaleString("nl-BE", { timeZone: "Europe/Brussels" })}</p>
-      <p><strong>Naam:</strong> {details.firstName} {details.lastName}</p>
-      {error && <p className="text-sm text-red-600">{error}</p>}
+      <h1 className="mb-6 text-2xl font-extrabold text-[#111827]">Samenvatting</h1>
+      <div className="space-y-2 rounded-[10px] bg-[#f9f9f9] p-5 text-sm">
+        <p><strong>Pakket:</strong> {selectedPackage.name} ({transmission === "AUTOMAAT" ? "automaat" : "manueel"})</p>
+        <p><strong>Lesmoment:</strong> {new Date(slot.startAt).toLocaleString("nl-BE", { timeZone: "Europe/Brussels" })}</p>
+        <p><strong>Instructeur:</strong> {slot.instructorName}</p>
+        <p><strong>Naam:</strong> {details.firstName} {details.lastName}</p>
+      </div>
+      {error && <p className="mt-4 text-sm text-[#ed1c24]">{error}</p>}
 
       <label className="mt-6 flex items-start gap-2">
         <input type="checkbox" checked={accepted} onChange={(e) => setAccepted(e.target.checked)} />
-        <span className="text-sm">Ik ga akkoord met de algemene voorwaarden en het reglement van Alpha Rijschool.</span>
+        <span className="text-sm">
+          Ik ga akkoord met de{" "}
+          <Link href="/algemene-voorwaarden" className="font-semibold text-[#ed1c24] underline" target="_blank">
+            algemene voorwaarden
+          </Link>{" "}
+          en het reglement van Alpha Rijschool.
+        </span>
       </label>
 
       <div className="mt-6 flex justify-between">
@@ -62,7 +72,7 @@ export function SummaryStep({ selectedPackage, transmission, slot, details, onBa
         <button
           disabled={!accepted || submitting}
           onClick={handleConfirm}
-          className="rounded-full bg-red-600 px-6 py-3 font-semibold text-white disabled:opacity-40"
+          className="rounded-[10px] bg-[#ed1c24] px-6 py-3 font-semibold text-white transition hover:bg-[#111827] disabled:opacity-40"
         >
           {submitting ? "Bezig..." : "Bevestig en betaal voorschot"}
         </button>
