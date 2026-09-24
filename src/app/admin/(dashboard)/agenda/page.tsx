@@ -9,7 +9,7 @@ export default async function AdminAgendaPage() {
 
   const lessons = await prisma.lesson.findMany({
     where: {
-      status: { in: ["PLANNED", "CONFIRMED"] },
+      status: "CONFIRMED",
       ...(role === "INSTRUCTOR" ? { instructorId } : {}),
     },
     include: { dossier: true, instructor: true },

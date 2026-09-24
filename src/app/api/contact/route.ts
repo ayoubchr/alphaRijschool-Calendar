@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { contactSchema } from "@/lib/contactSchema";
+import { contactSchema } from "@/lib/validations/contact";
 import { sendContactMessage } from "@/lib/email";
 
 export async function POST(request: NextRequest) {

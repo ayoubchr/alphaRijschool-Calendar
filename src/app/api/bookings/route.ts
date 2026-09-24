@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import { z } from "zod";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getPackageById, getSingleLessonPackage } from "@/lib/packages";
@@ -7,32 +6,12 @@ import { depositAmount } from "@/lib/pricing";
 import { createDepositPayment } from "@/lib/mollie";
 import { encryptField } from "@/lib/encryption";
 import { validateRequestedSlot } from "@/lib/slotValidation";
-import { isValidRijksregisternummer, normalizeRijksregisternummer } from "@/lib/rijksregisternummer";
+import { normalizeRijksregisternummer } from "@/lib/rijksregisternummer";
 import { LESSON_BLOCK_MINUTES } from "@/lib/constants";
-
-const bookingSchema = z.object({
-  packageId: z.string().min(1),
-  transmission: z.enum(["AUTOMAAT", "MANUEEL"]),
-  instructorId: z.string().min(1),
-  slots: z.array(z.object({ startAt: z.string().datetime(), endAt: z.string().datetime() })).min(1),
-  details: z.object({
-    firstName: z.string().min(1),
-    lastName: z.string().min(1),
-    email: z.string().email(),
-    phone: z.string().min(1),
-    address: z.string().min(1),
-    dateOfBirth: z.string().min(1),
-    nationalRegisterNumber: z
-      .string()
-      .optional()
-      .refine((value) => !value || isValidRijksregisternummer(value), {
-        message: "Ongeldig rijksregisternummer. Verwacht formaat: 11 cijfers, eventueel met punten/streepjes.",
-      }),
-  }),
-});
+import { bookingRequestSchema } from "@/lib/validations/booking";
 
 export async function POST(request: NextRequest) {
-  const parsed = bookingSchema.safeParse(await request.json());
+  const parsed = bookingRequestSchema.safeParse(await request.json());
   if (!parsed.success) {
     return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
   }

@@ -1,19 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { z } from "zod";
+import { createAvailabilityRule } from "@/lib/admin/availability";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
-
-const ruleSchema = z
-  .object({
-    instructorId: z.string().min(1),
-    weekday: z.number().int().min(0).max(6),
-    startTime: z.string().regex(/^\d{2}:\d{2}$/),
-    endTime: z.string().regex(/^\d{2}:\d{2}$/),
-  })
-  .refine((data) => data.startTime < data.endTime, {
-    message: "startTime must be before endTime",
-    path: ["endTime"],
-  });
 
 export async function GET() {
   const session = await auth();
@@ -28,15 +16,7 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
-  const session = await auth();
-  if (!session) {
-    return NextResponse.json({ error: "Niet aangemeld." }, { status: 401 });
-  }
-
-  const parsed = ruleSchema.safeParse(await request.json());
-  if (!parsed.success) {
-    return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
-  }
-  const rule = await prisma.availabilityRule.create({ data: parsed.data });
-  return NextResponse.json(rule, { status: 201 });
+  const result = await createAvailabilityRule(await request.json());
+  if (!result.ok) return NextResponse.json({ error: result.error }, { status: result.status });
+  return NextResponse.json(result.rule, { status: 201 });
 }

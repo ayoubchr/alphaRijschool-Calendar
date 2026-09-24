@@ -3,7 +3,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
-import { CONTACT_SUBJECTS, contactSchema, type ContactInput } from "@/lib/contactSchema";
+import { CONTACT_SUBJECTS, contactSchema, type ContactInput } from "@/lib/validations/contact";
 
 const inputClass = (invalid: boolean) =>
   `mt-1 w-full rounded-[10px] border px-3 py-2 outline-none transition focus:border-[#111827] ${

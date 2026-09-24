@@ -3,7 +3,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMemo } from "react";
 import { useForm } from "react-hook-form";
-import { createBookingDetailsSchema, type BookingDetailsInput } from "@/lib/bookingDetailsSchema";
+import { createBookingDetailsSchema, type BookingDetailsInput } from "@/lib/validations/bookingDetails";
 
 export interface BookingDetails {
   firstName: string;

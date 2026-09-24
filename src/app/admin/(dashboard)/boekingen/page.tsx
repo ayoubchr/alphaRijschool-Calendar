@@ -3,7 +3,7 @@ import { BookingsView } from "./BookingsView";
 
 export default async function AdminBookingsPage() {
   const lessons = await prisma.lesson.findMany({
-    where: { status: { in: ["PLANNED", "CONFIRMED"] } },
+    where: { status: "CONFIRMED" },
     include: { dossier: true, instructor: true },
     orderBy: { startAt: "asc" },
   });

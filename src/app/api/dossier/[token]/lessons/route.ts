@@ -1,16 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { z } from "zod";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { findDossierByMagicLinkToken } from "@/lib/dossiers";
 import { validateRequestedSlot } from "@/lib/slotValidation";
 import { LESSON_BLOCK_MINUTES } from "@/lib/constants";
-
-const schema = z.object({
-  instructorId: z.string().min(1),
-  startAt: z.string().datetime(),
-  endAt: z.string().datetime(),
-});
+import { dossierLessonSchema } from "@/lib/validations/dossierLesson";
 
 class InsufficientCreditError extends Error {}
 
@@ -20,7 +14,7 @@ export async function POST(request: NextRequest, { params }: { params: { token: 
     return NextResponse.json({ error: "Link is ongeldig of verlopen." }, { status: 404 });
   }
 
-  const parsed = schema.safeParse(await request.json());
+  const parsed = dossierLessonSchema.safeParse(await request.json());
   if (!parsed.success) {
     return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
   }
