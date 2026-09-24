@@ -2,6 +2,8 @@
 
 import Link from "next/link";
 import { useState } from "react";
+import { formatEuro } from "@/lib/money";
+import { depositAmount } from "@/lib/pricing";
 import type { PackageDTO } from "./PackageStep";
 import type { BookingSlot } from "./CalendarStep";
 import type { BookingDetails } from "./DetailsStep";
@@ -53,6 +55,7 @@ export function SummaryStep({ selectedPackage, transmission, slot, details, onBa
         <p><strong>Lesmoment:</strong> {new Date(slot.startAt).toLocaleString("nl-BE", { timeZone: "Europe/Brussels" })}</p>
         <p><strong>Instructeur:</strong> {slot.instructorName}</p>
         <p><strong>Naam:</strong> {details.firstName} {details.lastName}</p>
+        <p><strong>Voorschot:</strong> {formatEuro(depositAmount(selectedPackage, transmission))}</p>
       </div>
       {error && <p className="mt-4 text-sm text-[#ed1c24]">{error}</p>}
 

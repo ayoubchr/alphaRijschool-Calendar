@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { getPackageById, getSingleLessonPackage } from "@/lib/packages";
+import { getPackageById } from "@/lib/packages";
 import { depositAmount } from "@/lib/pricing";
 import { createDepositPayment } from "@/lib/mollie";
 import { encryptField } from "@/lib/encryption";
@@ -44,8 +44,7 @@ export async function POST(request: NextRequest) {
     }
   }
 
-  const singleLessonPkg = await getSingleLessonPackage();
-  const amount = depositAmount(singleLessonPkg, transmission);
+  const amount = depositAmount(pkg, transmission);
 
   let dossierId: string;
   let createdLessonIds: string[];
@@ -119,6 +118,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ checkoutUrl: payment.checkoutUrl });
   } catch (error) {
+    console.error("Mollie-betaling starten mislukt:", error);
     // The dossier+lessons transaction already committed by this point. If Mollie payment
     // creation fails here, those PLANNED lessons would otherwise have no associated Payment row
     // and nothing would ever cancel them — they'd sit forever, permanently blocking that
