@@ -1,6 +1,6 @@
 export const PHONE = "+32 486 29 53 75";
 export const PHONE_HREF = "tel:+32486295375";
-export const EMAIL = "rijschoolalpha@gmail.com";
+export const EMAIL = "rijschoolalpha@hotmail.com";
 //export const EMAIL = "ziani_nabil@outlook.com"; // temporary for testing
 
 export const ADDRESS = "Turnhoutsebaan 76B, 2100 Antwerpen";

@@ -7,6 +7,7 @@ export const CONTACT_SUBJECTS = [
   "6 uur automaat",
   "20 uur manueel",
   "20 uur automaat",
+  "theorie",
 ] as const;
 
 export const contactSchema = z.object({
