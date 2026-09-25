@@ -1,36 +1,36 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Alpha Rijschool
 
-## Getting Started
+Boekingsapp voor Alpha Rijschool: publieke site, pakket boeken met kalender en voorschot via Mollie (enkel bancontact), leerlingdossier, en een dashboard voor personeel.
 
-First, run the development server:
+- **Leerling** (`STUDENT`): inloggen op `/login`, lessen en tegoed op `/mijn-lessen`.
+- **Instructeur** (`INSTRUCTOR`): eigen agenda en beschikbaarheid.
+- **Beheerder** (`ADMIN`): alle agenda’s, boekingen, dossiers en rapporten op `/admin`.
+
+Stack: Next.js, PostgreSQL (Prisma), Supabase Auth, Mollie, Resend.
+
+## Starten
 
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+De site draait op [http://localhost:3000](http://localhost:3000). Inloggen als personeel: `/admin`.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Belangrijk
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+> `APP_URL` moet een **publieke** URL zijn. Mollie stuurt de betaalstatus naar `/api/webhooks/mollie`; localhost is daarvoor niet bereikbaar.
 
-## Learn More
+Lokaal een tunnel opzetten en die URL in `APP_URL` zetten (zonder slash op het einde):
 
-To learn more about Next.js, take a look at the following resources:
+```bash
+cloudflared tunnel --url http://localhost:3000
+# of
+ngrok http 3000
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+> Zet `APP_URL` op de tunnel-URL (bijv. `https://xxxx.trycloudflare.com`) en herstart de dev-server. Dezelfde URL wordt ook gebruikt voor de terugkeer na betaling en voor links in e-mails.
+>
+> Zet in Supabase onder Authentication → URL Configuration diezelfde URL als Site URL, en voeg ze toe aan de redirect-lijst. Blijft daar `http://localhost:3000` staan, dan landen auth-redirects op localhost. Bij een nieuwe tunnel-URL moet je dit opnieuw instellen.
+>
+> Het e-mailadres van de beheerder staat in `src/lib/site.ts` (`EMAIL`). Meldingen (zoals het contactformulier) gaan daarheen. Pas dat adres aan als je wil testen of mails aankomen, en zet het daarna terug.
