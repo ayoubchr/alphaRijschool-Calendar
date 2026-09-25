@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { StatusBadge } from "../StatusBadge";
 import { LessonCalendar, type Slot } from "@/components/LessonCalendar";
-import { addBrusselsDays, startOfBrusselsWeek } from "@/lib/brusselsWeek";
+import { addBrusselsDays, brusselsDateKey, brusselsMidnight, brusselsYmd, startOfBrusselsWeek } from "@/lib/brusselsWeek";
 import { cancelAgendaLesson, moveAgendaLesson } from "./actions";
 
 interface AgendaLesson {
@@ -11,7 +11,8 @@ interface AgendaLesson {
   startAt: string;
   endAt: string;
   status: string;
-  dossier: { firstName: string; lastName: string };
+    dossierId: string;
+    dossier: { firstName: string; lastName: string };
   instructor: { name: string };
   instructorId: string;
   packageId: string;
@@ -28,8 +29,98 @@ function formatSlot(startAt: string, endAt: string) {
   return `${date} · ${from}–${to}`;
 }
 
-export function AgendaView({ lessons: initialLessons }: { lessons: AgendaLesson[] }) {
+const WEEKDAYS = ["Ma", "Di", "Wo", "Do", "Vr", "Za", "Zo"];
+const LESSON_CHIP: Record<string, string> = {
+  PLANNED: "border-amber-200 bg-amber-50 text-amber-950",
+  CONFIRMED: "border-emerald-200 bg-emerald-50 text-emerald-950",
+};
+const MONTH = new Intl.DateTimeFormat("nl-BE", { timeZone: "Europe/Brussels", month: "long", year: "numeric" });
+const TIME = new Intl.DateTimeFormat("nl-BE", { timeZone: "Europe/Brussels", hour: "2-digit", minute: "2-digit" });
+
+function SearchField({
+  id,
+  label,
+  placeholder,
+  emptyLabel,
+  options,
+  value,
+  onChange,
+}: {
+  id: string;
+  label: string;
+  placeholder: string;
+  emptyLabel: string;
+  options: [string, string][];
+  value: string;
+  onChange: (id: string) => void;
+}) {
+  const selected = options.find(([optionId]) => optionId === value)?.[1] ?? "";
+  const [query, setQuery] = useState(selected);
+  const [open, setOpen] = useState(false);
+  const needle = query.trim().toLocaleLowerCase("nl");
+  const matches = options.filter(([, name]) => name.toLocaleLowerCase("nl").includes(needle)).slice(0, 8);
+
+  return (
+    <div className="relative text-sm font-semibold text-[#111827]" onBlur={(event) => { if (!event.currentTarget.contains(event.relatedTarget)) setOpen(false); }}>
+      <label htmlFor={id}>{label}</label>
+      <input
+        id={id}
+        value={query}
+        placeholder={placeholder}
+        autoComplete="off"
+        onFocus={() => setOpen(true)}
+        onChange={(event) => {
+          const next = event.target.value;
+          setQuery(next);
+          setOpen(true);
+          if (!next.trim()) onChange("all");
+        }}
+        className="mt-1 block w-52 rounded-[10px] border border-black/10 bg-white px-3 py-2 font-medium outline-none focus:border-[#111827]"
+      />
+      {open && (
+        <ul className="absolute z-20 mt-1 max-h-60 w-52 overflow-y-auto rounded-[10px] border border-black/10 bg-white py-1 shadow-lg">
+          {matches.map(([optionId, name]) => (
+            <li key={optionId}>
+              <button
+                type="button"
+                onMouseDown={(event) => event.preventDefault()}
+                onClick={() => { onChange(optionId); setQuery(name); setOpen(false); }}
+                className={`block w-full px-3 py-2 text-left font-medium hover:bg-[#f4f4f5] ${optionId === value ? "text-[#ed1c24]" : "text-[#111827]"}`}
+              >
+                {name}
+              </button>
+            </li>
+          ))}
+          {matches.length === 0 && <li className="px-3 py-2 font-medium text-[#58595b]">{emptyLabel}</li>}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+function shiftMonth(cursor: Date, delta: number) {
+  const { year, month } = brusselsYmd(cursor);
+  const next = new Date(Date.UTC(year, month - 1 + delta, 1));
+  return brusselsMidnight(next.getUTCFullYear(), next.getUTCMonth() + 1, 1);
+}
+
+export function AgendaView({
+  lessons: initialLessons,
+  instructors,
+  isAdmin,
+}: {
+  lessons: AgendaLesson[];
+  instructors: { id: string; name: string }[];
+  isAdmin: boolean;
+}) {
   const [lessons, setLessons] = useState(initialLessons);
+  const [cursor, setCursor] = useState(() => {
+    const { year, month } = brusselsYmd(new Date());
+    return brusselsMidnight(year, month, 1);
+  });
+  const [instructorFilter, setInstructorFilter] = useState("all");
+  const [dossierFilter, setDossierFilter] = useState("all");
+  const [selectedDay, setSelectedDay] = useState<string | null>(brusselsDateKey(new Date()));
   const [notices, setNotices] = useState<Record<string, string>>({});
   const [pendingId, setPendingId] = useState<string | null>(null);
   const [moving, setMoving] = useState<AgendaLesson | null>(null);
@@ -51,56 +142,122 @@ export function AgendaView({ lessons: initialLessons }: { lessons: AgendaLesson[
     }));
   }
 
+  const dossierOptions = Array.from(new Map(lessons.map((lesson) => [lesson.dossierId, `${lesson.dossier.firstName} ${lesson.dossier.lastName}`])).entries()).sort((a, b) => a[1].localeCompare(b[1], "nl"));
+  const visible = lessons.filter((lesson) => (instructorFilter === "all" || lesson.instructorId === instructorFilter) && (dossierFilter === "all" || lesson.dossierId === dossierFilter));
+  const { year, month } = brusselsYmd(cursor);
+  const gridStart = startOfBrusselsWeek(cursor);
+  const days = Array.from({ length: 42 }, (_, index) => addBrusselsDays(gridStart, index));
+  const byDay = new Map<string, AgendaLesson[]>();
+  for (const lesson of visible) {
+    const key = brusselsDateKey(new Date(lesson.startAt));
+    const list = byDay.get(key) ?? [];
+    list.push(lesson);
+    byDay.set(key, list);
+  }
+  const dayLessons = selectedDay ? byDay.get(selectedDay) ?? [] : [];
+
   return (
     <div>
-      <h1 className="mb-2 text-2xl font-extrabold text-[#111827]">Agenda</h1>
-      <p className="mb-6 text-sm text-[#58595b]">Hier vind je een overzicht van alle lessen die geboekt zijn.</p>
+      <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-extrabold text-[#111827]">Agenda</h1>
+          <p className="mt-1 text-sm text-[#58595b]">Maandoverzicht van geplande lessen. Kies een dag om te verplaatsen of te annuleren.</p>
+        </div>
+        <div className="flex flex-wrap gap-3">
+          {isAdmin && instructors.length > 0 && (
+            <SearchField
+              id="instructeur-zoeken"
+              label="Instructeur"
+              placeholder="Zoek een instructeur"
+              emptyLabel="Geen instructeur gevonden"
+              options={instructors.map((instructor) => [instructor.id, instructor.name])}
+              value={instructorFilter}
+              onChange={setInstructorFilter}
+            />
+          )}
+          {dossierOptions.length > 0 && (
+            <SearchField
+              id="dossier-zoeken"
+              label="Dossier"
+              placeholder="Zoek een dossier"
+              emptyLabel="Geen dossier gevonden"
+              options={dossierOptions}
+              value={dossierFilter}
+              onChange={setDossierFilter}
+            />
+          )}
+        </div>
+      </div>
       {error && <p className="mb-4 text-sm text-[#ed1c24]">{error}</p>}
       <div className="overflow-hidden rounded-[10px] border border-black/10 bg-white shadow-sm">
-        {lessons.length === 0 ? (
-          <p className="px-4 py-12 text-center text-sm text-[#58595b]">Er staan nog geen lessen in de agenda.</p>
+        <div className="flex items-center justify-between gap-3 border-b border-black/5 px-3 py-3">
+          <button type="button" className="rounded-[10px] border border-black/10 px-3 py-2 text-sm font-semibold" onClick={() => setCursor(shiftMonth(cursor, -1))}>← Vorige</button>
+          <div className="text-center">
+            <p className="text-sm font-extrabold capitalize text-[#111827]">{MONTH.format(cursor)}</p>
+            <p className="mt-1 flex justify-center gap-2 text-[10px] font-semibold">
+              <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-emerald-950">Bevestigd</span>
+              <span className="rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-amber-950">Gepland</span>
+            </p>
+          </div>
+          <button type="button" className="rounded-[10px] border border-black/10 px-3 py-2 text-sm font-semibold" onClick={() => setCursor(shiftMonth(cursor, 1))}>Volgende →</button>
+        </div>
+        <div className="grid grid-cols-7 border-b border-black/5 bg-[#f9f9f9] text-center text-[11px] font-bold uppercase tracking-wide text-[#58595b]">
+          {WEEKDAYS.map((label) => <div key={label} className="px-1 py-2">{label}</div>)}
+        </div>
+        <div className="grid grid-cols-7">
+          {days.map((day) => {
+            const key = brusselsDateKey(day);
+            const inMonth = brusselsYmd(day).month === month && brusselsYmd(day).year === year;
+            const items = byDay.get(key) ?? [];
+            const selected = key === selectedDay;
+            return (
+              <button
+                key={key}
+                type="button"
+                onClick={() => setSelectedDay(key)}
+                className={`min-h-24 border-b border-r border-black/5 p-1.5 text-left last:border-r-0 ${selected ? "bg-[#fff5f5]" : "bg-white"} ${inMonth ? "" : "opacity-40"}`}
+              >
+                <span className={`mb-1 flex h-6 w-6 items-center justify-center rounded-full text-xs font-extrabold ${key === brusselsDateKey(new Date()) ? "bg-[#ed1c24] text-white" : "text-[#111827]"}`}>
+                  {brusselsYmd(day).day}
+                </span>
+                <span className="block space-y-1">
+                  {items.slice(0, 2).map((lesson) => (
+                    <span key={lesson.id} className={`block truncate rounded border px-1 py-0.5 text-[10px] font-semibold ${LESSON_CHIP[lesson.status] ?? "border-black/10 bg-[#f9f9f9] text-[#111827]"}`}>
+                      {TIME.format(new Date(lesson.startAt))} {lesson.dossier.firstName}
+                    </span>
+                  ))}
+                  {items.length > 2 && <span className="block text-[10px] font-semibold text-[#58595b]">+{items.length - 2}</span>}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+      <div className="mt-4 rounded-[10px] border border-black/10 bg-white p-4 shadow-sm">
+        <h2 className="text-sm font-extrabold text-[#111827]">{selectedDay ? new Date(`${selectedDay}T12:00:00`).toLocaleDateString("nl-BE", { weekday: "long", day: "numeric", month: "long" }) : "Kies een dag"}</h2>
+        {dayLessons.length === 0 ? (
+          <p className="mt-3 text-sm text-[#58595b]">Geen lessen op deze dag.</p>
         ) : (
-          <table className="w-full text-sm">
-            <thead className="bg-[#f9f9f9] text-left text-xs font-bold uppercase tracking-wide text-[#58595b]">
-              <tr>
-                <th className="px-4 py-3">Moment</th>
-                <th className="px-4 py-3">Leerling</th>
-                <th className="px-4 py-3">Instructeur</th>
-                <th className="px-4 py-3">Status</th>
-                <th className="px-4 py-3 text-right">Actie</th>
-              </tr>
-            </thead>
-            <tbody>
-              {lessons.map((lesson) => (
-                <tr key={lesson.id} className="border-t border-black/5">
-                  <td className="px-4 py-3 font-medium text-[#111827]">{formatSlot(lesson.startAt, lesson.endAt)}</td>
-                  <td className="px-4 py-3">{lesson.dossier.firstName} {lesson.dossier.lastName}</td>
-                  <td className="px-4 py-3 text-[#58595b]">{lesson.instructor.name}</td>
-                  <td className="px-4 py-3">
-                    <StatusBadge status={lesson.status} />
-                    {notices[lesson.id] && <span className="mt-1 block text-xs text-[#58595b]">{notices[lesson.id]}</span>}
-                  </td>
-                  <td className="px-4 py-3 text-right">
-                    {lesson.canChange && (
-                      <span className="flex justify-end gap-2">
-                        <button type="button" onClick={() => setMoving(lesson)} className="rounded-[10px] border border-black/10 px-3 py-1.5 text-xs font-semibold">
-                          Verplaatsen
-                        </button>
-                        <button
-                          type="button"
-                          disabled={pendingId === lesson.id}
-                          onClick={() => handleCancel(lesson.id)}
-                          className="rounded-[10px] border border-black/10 px-3 py-1.5 text-xs font-semibold text-[#ed1c24] transition hover:border-[#ed1c24] disabled:opacity-50"
-                        >
-                          Annuleren
-                        </button>
-                      </span>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <ul className="mt-3 divide-y divide-black/5">
+            {dayLessons.map((lesson) => (
+              <li key={lesson.id} className="flex flex-wrap items-center justify-between gap-3 py-3 text-sm">
+                <div>
+                  <p className="font-semibold text-[#111827]">{formatSlot(lesson.startAt, lesson.endAt)} · {lesson.dossier.firstName} {lesson.dossier.lastName}</p>
+                  <p className="text-[#58595b]">{lesson.instructor.name}</p>
+                  {notices[lesson.id] && <p className="text-xs text-[#58595b]">{notices[lesson.id]}</p>}
+                </div>
+                <div className="flex items-center gap-2">
+                  <StatusBadge status={lesson.status} />
+                  {lesson.canChange && (
+                    <>
+                      <button type="button" onClick={() => setMoving(lesson)} className="rounded-[10px] border border-black/10 px-3 py-1.5 text-xs font-semibold">Verplaatsen</button>
+                      <button type="button" disabled={pendingId === lesson.id} onClick={() => handleCancel(lesson.id)} className="rounded-[10px] border border-black/10 px-3 py-1.5 text-xs font-semibold text-[#ed1c24] disabled:opacity-50">Annuleren</button>
+                    </>
+                  )}
+                </div>
+              </li>
+            ))}
+          </ul>
         )}
       </div>
       {moving && (

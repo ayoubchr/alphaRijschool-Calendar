@@ -4,15 +4,16 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { IconType } from "react-icons";
-import { IoCalendarOutline, IoLogOutOutline, IoTimeOutline } from "react-icons/io5";
+import { IoCalendarOutline, IoLogOutOutline, IoPeopleOutline, IoTimeOutline } from "react-icons/io5";
 import { logout } from "./actions";
 
-const LINKS: { href: string; label: string; icon: IconType }[] = [
+const LINKS: { href: string; label: string; icon: IconType; adminOnly?: boolean }[] = [
   { href: "/admin/agenda", label: "Agenda", icon: IoCalendarOutline },
   { href: "/admin/beschikbaarheid", label: "Beschikbaarheid", icon: IoTimeOutline },
+  { href: "/admin/dossiers", label: "Dossiers", icon: IoPeopleOutline, adminOnly: true },
 ];
 
-export function AdminSidebar() {
+export function AdminSidebar({ isAdmin }: { isAdmin: boolean }) {
   const pathname = usePathname();
 
   return (
@@ -36,7 +37,7 @@ export function AdminSidebar() {
       </div>
 
       <nav className="flex flex-1 flex-col gap-1 px-4 py-5" aria-label="Beheer">
-        {LINKS.map((link) => {
+        {LINKS.filter((link) => isAdmin || !link.adminOnly).map((link) => {
           const active = pathname === link.href || pathname.startsWith(`${link.href}/`);
           const Icon = link.icon;
           return (

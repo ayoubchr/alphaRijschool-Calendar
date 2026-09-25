@@ -6,6 +6,13 @@ import { addBrusselsDays, brusselsDateKey, brusselsYmd, isTooSoonToPlan, startOf
 import { cancelOwnLesson, moveOwnLesson, planLessons } from "./actions";
 import type { StudentDossier, StudentLesson } from "./MijnLessenView";
 
+type SlotChoice = { instructorId: string; startAt: string; endAt: string };
+export type CalendarActions = {
+  plan: (input: { dossierId: string; slots: SlotChoice[] }) => Promise<{ ok: true } | { ok: false; error: string }>;
+  move: (input: SlotChoice & { lessonId: string }) => Promise<{ ok: true } | { ok: false; error: string }>;
+  cancel: (lessonId: string) => Promise<{ ok: true } | { ok: false; error: string }>;
+};
+
 type FreeSlot = { instructorId: string; instructorName: string; startAt: string; endAt: string };
 type PendingMove = FreeSlot & { lessonId: string };
 
@@ -54,7 +61,10 @@ function initialWeek(lessons: StudentLesson[]) {
   return startOfBrusselsWeek(next ? new Date(next.startAt) : new Date());
 }
 
-export function PackageCalendar({ dossier }: { dossier: StudentDossier }) {
+export function PackageCalendar({ dossier, actions, onUpdated }: { dossier: StudentDossier; actions?: CalendarActions; onUpdated?: () => void }) {
+  const plan = actions?.plan ?? planLessons;
+  const moveLesson = actions?.move ?? moveOwnLesson;
+  const cancelLesson = actions?.cancel ?? cancelOwnLesson;
   const [weekStart, setWeekStart] = useState(() => initialWeek(dossier.lessons));
   const [freeSlots, setFreeSlots] = useState<FreeSlot[]>([]);
   const [loading, setLoading] = useState(true);
@@ -158,17 +168,18 @@ export function PackageCalendar({ dossier }: { dossier: StudentDossier }) {
     setError(null);
     const savedMoveIds: string[] = [];
     for (const move of moves) {
-      const result = await moveOwnLesson({ lessonId: move.lessonId, instructorId: move.instructorId, startAt: move.startAt, endAt: move.endAt });
+      const result = await moveLesson({ lessonId: move.lessonId, instructorId: move.instructorId, startAt: move.startAt, endAt: move.endAt });
       if (!result.ok) {
         setMoves((current) => current.filter((item) => !savedMoveIds.includes(item.lessonId)));
         setError(result.error);
         setSaving(false);
+        if (savedMoveIds.length > 0) onUpdated?.();
         return;
       }
       savedMoveIds.push(move.lessonId);
     }
     if (reservedAdds.length > 0) {
-      const result = await planLessons({
+      const result = await plan({
         dossierId: dossier.id,
         slots: reservedAdds.map((slot) => ({ instructorId: slot.instructorId, startAt: slot.startAt, endAt: slot.endAt })),
       });
@@ -176,19 +187,21 @@ export function PackageCalendar({ dossier }: { dossier: StudentDossier }) {
         setMoves([]);
         setError(result.error);
         setSaving(false);
+        if (savedMoveIds.length > 0) onUpdated?.();
         return;
       }
     }
     setMoves([]);
     setAdds([]);
     setSaving(false);
+    onUpdated?.();
   }
 
   async function confirmCancel() {
     if (!cancelTarget) return;
     setCancelling(true);
     setError(null);
-    const result = await cancelOwnLesson(cancelTarget.id);
+    const result = await cancelLesson(cancelTarget.id);
     setCancelling(false);
     if (!result.ok) {
       setError(result.error);
@@ -197,6 +210,7 @@ export function PackageCalendar({ dossier }: { dossier: StudentDossier }) {
     setMoves((current) => current.filter((item) => item.lessonId !== cancelTarget.id));
     setPickedId((current) => (current === cancelTarget.id ? null : current));
     setCancelTarget(null);
+    onUpdated?.();
   }
 
   return (

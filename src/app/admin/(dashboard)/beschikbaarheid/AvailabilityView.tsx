@@ -1,6 +1,7 @@
 "use client";
 
-import { type FormEvent, useState } from "react";
+import { type FormEvent, type PointerEvent as ReactPointerEvent, useRef, useState } from "react";
+import { IoCheckmark } from "react-icons/io5";
 import { addBrusselsDays, brusselsDateKey, startOfBrusselsWeek } from "@/lib/brusselsWeek";
 import { addInstructor, deleteInstructor, saveDaySlots, saveWeeklySlots } from "./actions";
 
@@ -138,7 +139,7 @@ export function AvailabilityView({
     <div>
       <h1 className="mb-2 text-2xl font-extrabold text-[#111827]">Beschikbaarheid</h1>
       <p className="mb-6 max-w-3xl text-sm text-[#58595b]">
-        Klik losse lesblokken aan voor één datum, of gebruik ‘Elke week’ om dezelfde uren meteen voor elke maandag, dinsdag, … in te stellen.
+        Sleep over de blokken om ze in één beweging open of dicht te zetten. Eén klik blijft werken. ‘Elke week’ zet dezelfde uren op elke maandag, dinsdag, …
       </p>
       {error && <p className="mb-4 text-sm text-[#ed1c24]">{error}</p>}
 
@@ -205,26 +206,28 @@ export function AvailabilityView({
       {selected && weeklyOpen && (
         <WeeklyModal
           rules={selected.availabilityRules}
+          instructors={isAdmin ? instructors.map((instructor) => ({ id: instructor.id, name: instructor.name })) : [{ id: selected.id, name: selected.name }]}
+          currentId={selected.id}
           saving={saving}
           onClose={() => setWeeklyOpen(false)}
-          onSave={async (weekdays, starts) => {
+          onSave={async (instructorIds, weekdays, starts) => {
             setSaving(true);
             setError(null);
-            const result = await saveWeeklySlots({
-              instructorId: selected.id,
-              weekdays,
-              slots: starts.map((startTime) => ({ startTime, endTime: slotEnd(startTime) })),
-            });
-            setSaving(false);
-            if (!result.ok) {
-              setError(result.error);
-              return;
+            const slots = starts.map((startTime) => ({ startTime, endTime: slotEnd(startTime) }));
+            for (const instructorId of instructorIds) {
+              const result = await saveWeeklySlots({ instructorId, weekdays, slots });
+              if (!result.ok) {
+                setSaving(false);
+                setError(result.error);
+                return;
+              }
+              setInstructors((prev) =>
+                prev.map((instructor) =>
+                  instructor.id === instructorId ? { ...instructor, availabilityRules: result.rules, availabilityExceptions: result.exceptions } : instructor
+                )
+              );
             }
-            setInstructors((prev) =>
-              prev.map((instructor) =>
-                instructor.id === selected.id ? { ...instructor, availabilityRules: result.rules, availabilityExceptions: result.exceptions } : instructor
-              )
-            );
+            setSaving(false);
             setWeeklyOpen(false);
           }}
         />
@@ -256,47 +259,15 @@ export function AvailabilityView({
       )}
 
       {selected && (
-        <div className="overflow-hidden rounded-[10px] border border-black/10 bg-white shadow-sm">
-          <div className="flex items-center justify-between gap-3 border-b border-black/5 px-3 py-3">
-            <button type="button" className="rounded-[10px] border border-black/10 px-3 py-2 text-sm font-semibold" onClick={() => setWeekStart(addBrusselsDays(weekStart, -7))}>← Vorige</button>
-            <button type="button" className="rounded-[10px] border border-black/10 px-3 py-2 text-sm font-semibold" onClick={() => setWeekStart(startOfBrusselsWeek(new Date()))}>Vandaag</button>
-            <button type="button" className="rounded-[10px] border border-black/10 px-3 py-2 text-sm font-semibold" onClick={() => setWeekStart(addBrusselsDays(weekStart, 7))}>Volgende →</button>
-          </div>
-          <div className="overflow-x-auto">
-            <div className="grid min-w-[760px] grid-cols-[88px_repeat(7,minmax(0,1fr))]">
-              <div className="border-b border-r border-black/5 bg-[#f9f9f9]" />
-              {days.map((day) => {
-                const dateKey = brusselsDateKey(day);
-                const open = openStarts(selected, dateKey);
-                const allOn = SLOT_STARTS.every((start) => open.has(start));
-                return (
-                  <button
-                    key={dateKey}
-                    type="button"
-                    disabled={saving}
-                    onClick={() => saveDay(dateKey, allOn ? [] : [...SLOT_STARTS])}
-                    className={`border-b border-r border-black/5 px-2 py-3 text-center last:border-r-0 ${dateKey === todayKey ? "bg-[#fff5f5]" : "bg-[#f9f9f9]"}`}
-                  >
-                    <span className="block text-[11px] font-bold uppercase tracking-wide text-[#58595b]">{DAY_LABEL.format(day)}</span>
-                    <span className={`mx-auto mt-1 flex h-7 w-7 items-center justify-center rounded-full text-sm font-extrabold ${dateKey === todayKey ? "bg-[#ed1c24] text-white" : "text-[#111827]"}`}>
-                      {DAY_NUMBER.format(day)}
-                    </span>
-                  </button>
-                );
-              })}
-              {SLOT_STARTS.map((start) => (
-                <SlotRow
-                  key={start}
-                  start={start}
-                  days={days}
-                  instructor={selected}
-                  saving={saving}
-                  onToggle={(dateKey, nextStarts) => saveDay(dateKey, nextStarts)}
-                />
-              ))}
-            </div>
-          </div>
-        </div>
+        <AvailabilityGrid
+          instructor={selected}
+          days={days}
+          todayKey={todayKey}
+          weekStart={weekStart}
+          saving={saving}
+          onWeekChange={setWeekStart}
+          onSaveDay={saveDay}
+        />
       )}
     </div>
   );
@@ -304,15 +275,20 @@ export function AvailabilityView({
 
 function WeeklyModal({
   rules,
+  instructors,
+  currentId,
   saving,
   onClose,
   onSave,
 }: {
   rules: AvailabilityInstructor["availabilityRules"];
+  instructors: { id: string; name: string }[];
+  currentId: string;
   saving: boolean;
   onClose: () => void;
-  onSave: (weekdays: number[], starts: string[]) => void;
+  onSave: (instructorIds: string[], weekdays: number[], starts: string[]) => void;
 }) {
+  const [instructorIds, setInstructorIds] = useState(() => [currentId]);
   const [weekdays, setWeekdays] = useState(() => Array.from(new Set(rules.map((rule) => rule.weekday))));
   const [starts, setStarts] = useState(() =>
     SLOT_STARTS.filter((start) => rules.some((rule) => rule.startTime.slice(0, 5) === start))
@@ -331,6 +307,27 @@ function WeeklyModal({
       <div className="w-full max-w-lg rounded-[10px] bg-white p-5 shadow-lg">
         <h2 id="weekly-title" className="text-lg font-extrabold text-[#111827]">Elke week</h2>
         <p className="mt-1 text-sm text-[#58595b]">De gekozen uren gelden voortaan elke week op die dagen. Een losse klik in de kalender past daarna alleen die ene datum aan.</p>
+        {instructors.length > 1 && (
+          <>
+            <p className="mt-4 text-sm font-semibold text-[#111827]">Instructeurs</p>
+            <div className="mt-2 flex flex-wrap gap-2">
+              {instructors.map((instructor) => {
+                const on = instructorIds.includes(instructor.id);
+                return (
+                  <button
+                    key={instructor.id}
+                    type="button"
+                    aria-pressed={on}
+                    onClick={() => setInstructorIds((current) => (on ? current.filter((id) => id !== instructor.id) : [...current, instructor.id]))}
+                    className={`rounded-[10px] px-3 py-2 text-sm font-semibold ${on ? "bg-[#111827] text-white" : "border border-black/10 text-[#58595b]"}`}
+                  >
+                    {instructor.name}
+                  </button>
+                );
+              })}
+            </div>
+          </>
+        )}
         <p className="mt-4 text-sm font-semibold text-[#111827]">Dagen</p>
         <div className="mt-2 flex flex-wrap gap-2">
           {WEEKDAYS.map((item) => (
@@ -361,7 +358,7 @@ function WeeklyModal({
         </div>
         <div className="mt-5 flex justify-end gap-2">
           <button type="button" onClick={onClose} className="rounded-[10px] border border-black/10 px-4 py-2 text-sm font-semibold">Annuleren</button>
-          <button type="button" disabled={saving || weekdays.length === 0 || starts.length === 0} onClick={() => onSave(weekdays, starts)} className={buttonClass}>Opslaan</button>
+          <button type="button" disabled={saving || weekdays.length === 0 || starts.length === 0 || instructorIds.length === 0} onClick={() => onSave(instructorIds, weekdays, starts)} className={buttonClass}>Opslaan</button>
         </div>
       </div>
     </div>
@@ -397,42 +394,140 @@ function ConfirmModal({
   );
 }
 
-function SlotRow({
-  start,
-  days,
+function AvailabilityGrid({
   instructor,
+  days,
+  todayKey,
+  weekStart,
   saving,
-  onToggle,
+  onWeekChange,
+  onSaveDay,
 }: {
-  start: string;
-  days: Date[];
   instructor: AvailabilityInstructor;
+  days: Date[];
+  todayKey: string;
+  weekStart: Date;
   saving: boolean;
-  onToggle: (dateKey: string, nextStarts: string[]) => void;
+  onWeekChange: (next: Date) => void;
+  onSaveDay: (dateKey: string, starts: string[]) => Promise<void>;
 }) {
+  const gridRef = useRef<HTMLDivElement>(null);
+  const dragRef = useRef<{ mode: "on" | "off"; dirty: Map<string, Set<string>> } | null>(null);
+  const [preview, setPreview] = useState<Record<string, string[]> | null>(null);
+  const weekLabel = `${days[0].toLocaleDateString("nl-BE", { timeZone: BRUSSELS, day: "numeric", month: "short" })} – ${days[6].toLocaleDateString("nl-BE", { timeZone: BRUSSELS, day: "numeric", month: "short" })}`;
+
+  function startsFor(dateKey: string) {
+    if (preview && dateKey in preview) return new Set(preview[dateKey]);
+    return openStarts(instructor, dateKey);
+  }
+
+  function paint(dateKey: string, start: string) {
+    const drag = dragRef.current;
+    if (!drag) return;
+    if (!drag.dirty.has(dateKey)) drag.dirty.set(dateKey, new Set(openStarts(instructor, dateKey)));
+    const slots = drag.dirty.get(dateKey)!;
+    if (drag.mode === "on") slots.add(start);
+    else slots.delete(start);
+    setPreview(Object.fromEntries([...drag.dirty].map(([key, value]) => [key, SLOT_STARTS.filter((slot) => value.has(slot))])));
+  }
+
+  function startDrag(event: ReactPointerEvent<HTMLDivElement>) {
+    if (saving || event.button !== 0) return;
+    const cell = (event.target as HTMLElement).closest("[data-slot]");
+    if (!cell) return;
+    const dateKey = cell.getAttribute("data-date");
+    const start = cell.getAttribute("data-start");
+    if (!dateKey || !start) return;
+    event.preventDefault();
+    gridRef.current?.setPointerCapture(event.pointerId);
+    dragRef.current = { mode: openStarts(instructor, dateKey).has(start) ? "off" : "on", dirty: new Map() };
+    paint(dateKey, start);
+  }
+
+  function moveDrag(event: ReactPointerEvent<HTMLDivElement>) {
+    if (!dragRef.current) return;
+    const cell = document.elementFromPoint(event.clientX, event.clientY)?.closest("[data-slot]");
+    const dateKey = cell?.getAttribute("data-date");
+    const start = cell?.getAttribute("data-start");
+    if (dateKey && start) paint(dateKey, start);
+  }
+
+  async function finishDrag() {
+    const drag = dragRef.current;
+    dragRef.current = null;
+    if (!drag || drag.dirty.size === 0) return;
+    for (const [dateKey, slots] of drag.dirty) {
+      await onSaveDay(dateKey, SLOT_STARTS.filter((start) => slots.has(start)));
+    }
+    setPreview(null);
+  }
+
   return (
-    <>
-      <div className="border-b border-r border-black/5 px-2 py-3 text-xs font-semibold text-[#58595b]">{start}–{slotEnd(start)}</div>
-      {days.map((day) => {
-        const dateKey = brusselsDateKey(day);
-        const open = openStarts(instructor, dateKey);
-        const on = open.has(start);
-        return (
-          <button
-            key={dateKey}
-            type="button"
-            disabled={saving}
-            aria-pressed={on}
-            onClick={() => {
-              const next = new Set(open);
-              if (next.has(start)) next.delete(start);
-              else next.add(start);
-              onToggle(dateKey, SLOT_STARTS.filter((slot) => next.has(slot)));
-            }}
-            className={`min-h-11 border-b border-r border-black/5 last:border-r-0 ${on ? "bg-[#111827]" : "bg-white hover:bg-[#f4f4f5]"}`}
-          />
-        );
-      })}
-    </>
+    <div className="overflow-hidden rounded-[10px] border border-black/10 bg-white shadow-sm">
+      <div className="flex items-center justify-between gap-3 border-b border-black/5 px-3 py-3">
+        <button type="button" className="rounded-[10px] border border-black/10 px-3 py-2 text-sm font-semibold" onClick={() => onWeekChange(addBrusselsDays(weekStart, -7))}>← Vorige</button>
+        <div className="text-center">
+          <p className="text-sm font-extrabold text-[#111827]">{weekLabel}</p>
+          <button type="button" className="mt-1 text-xs font-semibold text-[#58595b] underline" onClick={() => onWeekChange(startOfBrusselsWeek(new Date()))}>Vandaag</button>
+        </div>
+        <button type="button" className="rounded-[10px] border border-black/10 px-3 py-2 text-sm font-semibold" onClick={() => onWeekChange(addBrusselsDays(weekStart, 7))}>Volgende →</button>
+      </div>
+      <div className={`overflow-x-auto ${saving ? "opacity-60" : ""}`}>
+        <div
+          ref={gridRef}
+          className="grid min-w-[820px] touch-none select-none grid-cols-[7.5rem_repeat(7,minmax(0,1fr))]"
+          onPointerDown={startDrag}
+          onPointerMove={moveDrag}
+          onPointerUp={finishDrag}
+          onPointerCancel={finishDrag}
+        >
+          <div className="border-b border-r border-black/5 bg-[#f9f9f9]" />
+          {days.map((day) => {
+            const dateKey = brusselsDateKey(day);
+            const open = startsFor(dateKey);
+            const allOn = SLOT_STARTS.every((start) => open.has(start));
+            return (
+              <button
+                key={dateKey}
+                type="button"
+                disabled={saving}
+                onClick={() => onSaveDay(dateKey, allOn ? [] : [...SLOT_STARTS])}
+                className={`border-b border-r border-black/5 px-2 py-3 text-center last:border-r-0 ${dateKey === todayKey ? "bg-[#fff5f5]" : "bg-[#f9f9f9]"}`}
+              >
+                <span className="block text-[11px] font-bold uppercase tracking-wide text-[#58595b]">{DAY_LABEL.format(day)}</span>
+                <span className={`mx-auto mt-1 flex h-7 w-7 items-center justify-center rounded-full text-sm font-extrabold ${dateKey === todayKey ? "bg-[#ed1c24] text-white" : "text-[#111827]"}`}>
+                  {DAY_NUMBER.format(day)}
+                </span>
+              </button>
+            );
+          })}
+          {SLOT_STARTS.map((start) => (
+            <div key={start} className="contents">
+              <div className="whitespace-nowrap border-b border-r border-black/5 px-2 py-3 text-xs font-semibold text-[#58595b]">{start}–{slotEnd(start)}</div>
+              {days.map((day) => {
+                const dateKey = brusselsDateKey(day);
+                const on = startsFor(dateKey).has(start);
+                return (
+                  <div
+                    key={dateKey}
+                    data-slot=""
+                    data-date={dateKey}
+                    data-start={start}
+                    role="button"
+                    aria-pressed={on}
+                    aria-label={`${DAY_LABEL.format(day)} ${start} ${on ? "open" : "dicht"}`}
+                    className="flex min-h-12 items-center justify-center border-b border-r border-black/5 p-1.5 last:border-r-0"
+                  >
+                    <span className={`flex h-8 w-full items-center justify-center rounded-md ${on ? "bg-[#111827] text-white" : "bg-[#f4f4f5]"}`}>
+                      {on && <IoCheckmark className="h-5 w-5" aria-hidden />}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
   );
 }
