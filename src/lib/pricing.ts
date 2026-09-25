@@ -1,3 +1,5 @@
+import { LESSON_BLOCK_MINUTES } from "@/lib/constants";
+
 export type Transmission = "AUTOMAAT" | "MANUEEL";
 
 export interface PackageLike {
@@ -15,12 +17,31 @@ export function packagePrice(pkg: PackageLike, transmission: Transmission): numb
   return transmissionPrice(pkg, transmission) + pkg.registrationFee;
 }
 
+export interface DepositBreakdown {
+  lessonLabel: string;
+  lessonAmount: number;
+  registrationFee: number;
+  total: number;
+}
+
 /**
- * Deposit in cents: package price per hour, plus the registration fee.
- * A practical exam has no lesson hours, so its deposit is half the package price plus the fee.
+ * What the student pays now: the first 2-hour lesson, plus the registration fee.
+ * A practical exam has no lesson hours, so that part is half the package price.
  */
-export function depositAmount(pkg: PackageLike, transmission: Transmission): number {
+export function depositBreakdown(pkg: PackageLike, transmission: Transmission): DepositBreakdown {
   const base = transmissionPrice(pkg, transmission);
-  const divisor = pkg.hours > 0 ? pkg.hours : 2;
-  return Math.round(base / divisor) + pkg.registrationFee;
+  const lessonAmount =
+    pkg.hours > 0
+      ? Math.round((base / pkg.hours) * Math.min(LESSON_BLOCK_MINUTES / 60, pkg.hours))
+      : Math.round(base / 2);
+  return {
+    lessonLabel: pkg.hours > 0 ? "Eerste les" : "Praktijkexamen",
+    lessonAmount,
+    registrationFee: pkg.registrationFee,
+    total: lessonAmount + pkg.registrationFee,
+  };
+}
+
+export function depositAmount(pkg: PackageLike, transmission: Transmission): number {
+  return depositBreakdown(pkg, transmission).total;
 }

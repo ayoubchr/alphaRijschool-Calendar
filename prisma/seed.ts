@@ -2,10 +2,15 @@ import "dotenv/config";
 import { randomBytes } from "crypto";
 import { PrismaClient } from "@prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
-import { hash } from "bcryptjs";
+import { SLOT_STARTS } from "../src/lib/constants";
+import { createAdminSupabase } from "../src/lib/supabase/admin";
 
 const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
 const prisma = new PrismaClient({ adapter });
+
+function slotEnd(start: string) {
+  return `${String(Number(start.slice(0, 2)) + 2).padStart(2, "0")}:00`;
+}
 
 async function main() {
   await prisma.package.createMany({
@@ -26,22 +31,29 @@ async function main() {
   });
 
   await prisma.availabilityRule.createMany({
-    data: [1, 2, 3, 4, 5].map((weekday) => ({
-      instructorId: instructor.id, weekday, startTime: "09:00", endTime: "17:00",
-    })).concat([{ instructorId: instructor.id, weekday: 6, startTime: "09:00", endTime: "13:00" }]),
+    data: [1, 2, 3, 4, 5].flatMap((weekday) =>
+      SLOT_STARTS.map((startTime) => ({ instructorId: instructor.id, weekday, startTime, endTime: slotEnd(startTime) }))
+    ),
   });
 
-  // Generate a random password each time the seed runs, rather than shipping a fixed,
-  // publicly-documented default (e.g. "changeme123") that would otherwise sit unchanged in
-  // every dev/staging database until someone remembers to rotate it.
+  const email = "beheerder@alpha-rijschool.be";
   const generatedPassword = randomBytes(9).toString("base64url");
-  const passwordHash = await hash(generatedPassword, 10);
-  await prisma.staffUser.create({
-    data: { email: "beheerder@alpha-rijschool.be", passwordHash, role: "ADMIN" },
+  const admin = createAdminSupabase();
+  const created = await admin.auth.admin.createUser({
+    email,
+    password: generatedPassword,
+    email_confirm: true,
+    app_metadata: { role: "ADMIN", instructor_id: null },
+  });
+  if (created.error || !created.data.user) {
+    throw new Error(created.error?.message ?? "Beheerder aanmaken in Supabase mislukt.");
+  }
+  await prisma.profile.create({
+    data: { id: created.data.user.id, email, role: "ADMIN" },
   });
 
   console.log("Seed klaar.");
-  console.log(`Beheerder-account: beheerder@alpha-rijschool.be`);
+  console.log(`Beheerder-account: ${email}`);
   console.log(`Gegenereerd wachtwoord: ${generatedPassword}`);
   console.log("Bewaar dit wachtwoord nu (bv. in een password manager) — het wordt niet opnieuw getoond.");
 }

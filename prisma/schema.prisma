@@ -34,6 +34,7 @@ enum PaymentType {
 enum StaffRole {
   ADMIN
   INSTRUCTOR
+  STUDENT
 }
 
 model Package {
@@ -53,12 +54,13 @@ model Package {
 model Instructor {
   id                     String   @id @default(cuid())
   name                   String
+  email                  String?  @unique
   transmission           Transmission
   active                 Boolean  @default(true)
   availabilityRules      AvailabilityRule[]
   availabilityExceptions AvailabilityException[]
   lessons                Lesson[]
-  staffUsers             StaffUser[]
+  profiles               Profile[]
 }
 
 model AvailabilityRule {
@@ -134,10 +136,9 @@ model Payment {
   createdAt       DateTime      @default(now())
 }
 
-model StaffUser {
-  id           String     @id @default(cuid())
-  email        String     @unique
-  passwordHash String
+model Profile {
+  id           String      @id
+  email        String      @unique
   role         StaffRole
   instructorId String?
   instructor   Instructor? @relation(fields: [instructorId], references: [id])

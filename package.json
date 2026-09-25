@@ -7,17 +7,19 @@
     "build": "next build",
     "start": "next start",
     "db:migrate": "prisma migrate dev",
-    "db:seed": "tsx prisma/seed.ts"
+    "db:seed": "tsx prisma/seed.ts",
+    "types": "npx supabase gen types typescript --project-id hiapdeudeaekqqaihwbo > src/lib/supabase/types.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.9.1",
     "@mollie/api-client": "^4.6.0",
     "@prisma/adapter-pg": "^7.10.0",
     "@prisma/client": "^7.10.0",
-    "bcryptjs": "^3.0.3",
+    "@react-email/render": "^2.1.0",
+    "@supabase/ssr": "^0.12.7",
+    "@supabase/supabase-js": "^2.117.1",
     "date-fns": "^4.4.0",
     "next": "14.2.35",
-    "next-auth": "^5.0.0-beta.32",
     "pg": "^8.23.0",
     "prisma": "^7.10.0",
     "react": "^18",

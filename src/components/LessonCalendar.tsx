@@ -18,6 +18,7 @@ export interface Slot {
 interface LessonCalendarProps {
   slots: Slot[];
   selectedSlot: Slot | null;
+  selectedSlots?: Slot[];
   weekStart: Date;
   canGoPrevious: boolean;
   canGoNext: boolean;
@@ -46,6 +47,7 @@ function weekLabel(weekStart: Date) {
 export function LessonCalendar({
   slots,
   selectedSlot,
+  selectedSlots,
   weekStart,
   canGoPrevious,
   canGoNext,
@@ -97,7 +99,9 @@ export function LessonCalendar({
                 </header>
                 <ul className="space-y-2">
                   {daySlots.map((slot) => {
-                    const active = selectedSlot?.startAt === slot.startAt && selectedSlot?.endAt === slot.endAt;
+                    const active = selectedSlots
+                      ? selectedSlots.some((item) => item.startAt === slot.startAt && item.endAt === slot.endAt && item.instructorName === slot.instructorName)
+                      : selectedSlot?.startAt === slot.startAt && selectedSlot?.endAt === slot.endAt;
                     const instructor = slot.instructorName;
                     return (
                       <li key={`${slot.startAt}-${instructor ?? ""}`}>

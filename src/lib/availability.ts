@@ -21,6 +21,8 @@ export interface Slot {
   endAt: Date;
 }
 
+const GRID_STARTS = new Set(["08:00", "10:00", "12:00", "14:00", "16:00", "18:00"]);
+
 const BRUSSELS_TZ = "Europe/Brussels";
 
 // Formats an instant's wall-clock date/time as it reads in Europe/Brussels, regardless of the
@@ -165,6 +167,9 @@ export function computeAvailableSlots(params: {
         slotStartMin + lessonDurationMinutes <= windowEndMin;
         slotStartMin += lessonDurationMinutes
       ) {
+        const startLabel = `${String(Math.floor(slotStartMin / 60)).padStart(2, "0")}:${String(slotStartMin % 60).padStart(2, "0")}`;
+        if (!GRID_STARTS.has(startLabel)) continue;
+
         const slotStart = brusselsWallTimeToUtc(year, month, day, slotStartMin);
         const slotEnd = brusselsWallTimeToUtc(year, month, day, slotStartMin + lessonDurationMinutes);
         if (slotStart < rangeStart || slotEnd > rangeEnd) continue;

@@ -81,6 +81,7 @@ export function AvailabilityView({
     setSaving(true);
     const result = await addInstructor({
       name: String(form.get("name") ?? ""),
+      email: String(form.get("email") ?? ""),
       transmission: String(form.get("transmission") ?? "BOTH"),
     });
     setSaving(false);
@@ -142,10 +143,14 @@ export function AvailabilityView({
       {error && <p className="mb-4 text-sm text-[#ed1c24]">{error}</p>}
 
       {isAdmin && (
-        <form onSubmit={handleAddInstructor} className="mb-6 grid gap-4 rounded-[10px] border border-black/10 bg-white p-5 shadow-sm sm:grid-cols-[1fr_180px_auto] sm:items-end">
+        <form onSubmit={handleAddInstructor} className="mb-6 grid gap-4 rounded-[10px] border border-black/10 bg-white p-5 shadow-sm sm:grid-cols-[1fr_1fr_180px_auto] sm:items-end">
           <label className="block text-sm font-medium">
             Nieuwe instructeur
             <input name="name" required placeholder="Naam" className={fieldClass} />
+          </label>
+          <label className="block text-sm font-medium">
+            E-mail
+            <input name="email" type="email" required placeholder="instructeur@alpha-rijschool.be" className={fieldClass} />
           </label>
           <label className="block text-sm font-medium">
             Transmissie

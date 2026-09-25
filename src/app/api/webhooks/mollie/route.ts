@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getPaymentStatus } from "@/lib/mollie";
-import { generateMagicLinkToken, magicLinkExpiryDate } from "@/lib/magicLink";
 import { sendBookingConfirmationEmail } from "@/lib/email";
+import { notifyStaffOfLessons } from "@/lib/notifications";
+import { ensureAuthUser, magicLinkFor } from "@/lib/supabase/accounts";
 import { LESSON_BLOCK_MINUTES } from "@/lib/constants";
 
 export async function POST(request: NextRequest) {
@@ -14,7 +15,7 @@ export async function POST(request: NextRequest) {
 
   const payment = await prisma.payment.findUnique({
     where: { molliePaymentId: paymentId },
-    include: { dossier: { include: { lessons: true } } },
+    include: { dossier: { include: { lessons: { include: { instructor: true } } } } },
   });
   if (!payment) {
     return NextResponse.json({ error: "Onbekende betaling." }, { status: 404 });
@@ -50,15 +51,27 @@ export async function POST(request: NextRequest) {
       prisma.dossier.update({ where: { id: payment.dossierId }, data: { hoursRemaining: newHoursRemaining } }),
     ]);
 
-    const magicLink = await prisma.magicLink.create({
-      data: { dossierId: payment.dossierId, token: generateMagicLinkToken(), expiresAt: magicLinkExpiryDate() },
-    });
+    const studentName = `${payment.dossier.firstName} ${payment.dossier.lastName}`;
+    await ensureAuthUser({ email: payment.dossier.email, role: "STUDENT" });
+    const magicLinkUrl = await magicLinkFor(payment.dossier.email, "/mijn-lessen");
+    const lessons = payment.dossier.lessons.map((lesson) => ({
+      startAt: lesson.startAt,
+      endAt: lesson.endAt,
+      instructorName: lesson.instructor.name,
+      instructorId: lesson.instructorId,
+      studentName,
+    }));
 
     await sendBookingConfirmationEmail({
       to: payment.dossier.email,
-      dossierName: `${payment.dossier.firstName} ${payment.dossier.lastName}`,
-      magicLinkToken: magicLink.token,
-      lessons: payment.dossier.lessons.map((l) => ({ startAt: l.startAt, endAt: l.endAt })),
+      dossierName: studentName,
+      magicLinkUrl,
+      lessons,
+    });
+    await notifyStaffOfLessons({
+      title: "Nieuwe lessen ingepland",
+      intro: `${studentName} heeft een voorschot betaald. Deze lessen staan in de agenda.`,
+      lessons,
     });
   } else if (["failed", "canceled", "expired"].includes(status)) {
     // Same idempotent-claim pattern as the paid branch, so a retried failure notification

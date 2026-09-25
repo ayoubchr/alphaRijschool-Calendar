@@ -25,7 +25,7 @@ function BookingWizard() {
   const [step, setStep] = useState<Step>("package");
   const [selectedPackage, setSelectedPackage] = useState<PackageDTO | null>(null);
   const [transmission, setTransmission] = useState<Transmission | null>(null);
-  const [slot, setSlot] = useState<BookingSlot | null>(null);
+  const [slots, setSlots] = useState<BookingSlot[]>([]);
   const [details, setDetails] = useState<BookingDetails | null>(null);
 
   const preselectedPackageId = searchParams.get("package");
@@ -38,7 +38,7 @@ function BookingWizard() {
           <p className="text-sm font-semibold uppercase tracking-[0.16em] text-brand-red">Online inschrijven</p>
           <h1 className="mt-2 text-3xl font-extrabold text-brand-navy md:text-4xl">Boek je les</h1>
           <p className="mt-2 max-w-xl text-brand-gray">
-            Kies een pakket, een moment en betaal je voorschot. Je plek is pas vast na betaling.
+            Kies een pakket en je lesmomenten. Je betaalt nu de eerste les en de inschrijvingskosten.
           </p>
         </div>
         <Image
@@ -82,7 +82,7 @@ function BookingWizard() {
           onSelect={(pkg) => {
             setSelectedPackage(pkg);
             setTransmission(null);
-            setSlot(null);
+            setSlots([]);
             setStep("transmission");
           }}
         />
@@ -101,8 +101,9 @@ function BookingWizard() {
         <CalendarStep
           packageId={selectedPackage.id}
           transmission={transmission}
-          onConfirm={(chosenSlot) => {
-            setSlot(chosenSlot);
+          lessonCount={Math.max(1, Math.floor(selectedPackage.hours / 2))}
+          onConfirm={(chosen) => {
+            setSlots(chosen);
             setStep("details");
           }}
           onBack={() => setStep("transmission")}
@@ -119,11 +120,11 @@ function BookingWizard() {
           onBack={() => setStep("calendar")}
         />
       )}
-      {step === "summary" && selectedPackage && transmission && slot && details && (
+      {step === "summary" && selectedPackage && transmission && slots.length > 0 && details && (
         <SummaryStep
           selectedPackage={selectedPackage}
           transmission={transmission}
-          slot={slot}
+          slots={slots}
           details={details}
           onBack={() => setStep("details")}
         />

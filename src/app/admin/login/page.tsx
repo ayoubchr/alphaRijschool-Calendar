@@ -2,7 +2,7 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import Image from "next/image";
-import { signIn } from "next-auth/react";
+import { createBrowserSupabase } from "@/lib/supabase/browser";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
@@ -28,17 +28,16 @@ export default function AdminLoginPage() {
 
   async function onSubmit(values: AdminLoginInput) {
     setServerError("");
-    const result = await signIn("credentials", {
-      email: values.email,
-      password: values.password,
-      redirect: false,
-    });
-
-    if (result?.error) {
+    const supabase = createBrowserSupabase();
+    const { error } = await supabase.auth.signInWithPassword({ email: values.email, password: values.password });
+    if (error) {
       setServerError("Ongeldige combinatie van e-mail en wachtwoord.");
       return;
     }
-    router.push("/admin/agenda");
+    const { data } = await supabase.auth.getUser();
+    const role = data.user?.app_metadata?.role;
+    router.push(role === "STUDENT" ? "/mijn-lessen" : "/admin/agenda");
+    router.refresh();
   }
 
   return (

@@ -84,5 +84,6 @@ export const instructorScheduleSchema = z
 
 export const instructorCreateSchema = z.object({
   name: z.string().trim().min(1).max(80),
+  email: z.string().trim().email(),
   transmission: z.enum(["AUTOMAAT", "MANUEEL", "BOTH"]),
 });

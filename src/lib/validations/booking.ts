@@ -4,8 +4,9 @@ import { isValidRijksregisternummer } from "@/lib/rijksregisternummer";
 export const bookingRequestSchema = z.object({
   packageId: z.string().min(1),
   transmission: z.enum(["AUTOMAAT", "MANUEEL"]),
-  instructorId: z.string().min(1),
-  slots: z.array(z.object({ startAt: z.string().datetime(), endAt: z.string().datetime() })).min(1),
+  slots: z
+    .array(z.object({ instructorId: z.string().min(1), startAt: z.string().datetime(), endAt: z.string().datetime() }))
+    .min(1),
   details: z.object({
     firstName: z.string().min(1),
     lastName: z.string().min(1),

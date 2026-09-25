@@ -20,7 +20,7 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
     return NextResponse.json({ status: result.status, refundEligible: result.refundEligible });
   }
 
-  const result = await rescheduleLesson(params.id, parsed.data.startAt, parsed.data.endAt);
+  const result = await rescheduleLesson(params.id, parsed.data.startAt, parsed.data.endAt, parsed.data.instructorId);
   if (!result.ok) return NextResponse.json({ error: result.error }, { status: result.status });
   return NextResponse.json(result.lesson);
 }

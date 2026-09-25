@@ -1,42 +1,40 @@
-import NextAuth from "next-auth";
-import Credentials from "next-auth/providers/credentials";
-import { compare } from "bcryptjs";
+import type { StaffRole } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
+import { createServerSupabase, isSupabaseConfigured } from "@/lib/supabase/server";
 
-export async function authorizeStaffUser(email: string, password: string) {
-  const user = await prisma.staffUser.findUnique({ where: { email } });
-  if (!user) return null;
-  const valid = await compare(password, user.passwordHash);
-  if (!valid) return null;
-  return { id: user.id, email: user.email, role: user.role, instructorId: user.instructorId ?? undefined };
+export interface SessionUser {
+  id: string;
+  email: string;
+  role: StaffRole;
+  instructorId?: string;
 }
 
-export const { handlers, auth, signIn, signOut } = NextAuth({
-  providers: [
-    Credentials({
-      credentials: { email: {}, password: {} },
-      authorize: async (credentials) => {
-        const email = credentials?.email as string | undefined;
-        const password = credentials?.password as string | undefined;
-        if (!email || !password) return null;
-        return authorizeStaffUser(email, password);
-      },
-    }),
-  ],
-  session: { strategy: "jwt" },
-  pages: { signIn: "/admin/login" },
-  callbacks: {
-    jwt: ({ token, user }) => {
-      if (user) {
-        token.role = (user as any).role;
-        token.instructorId = (user as any).instructorId;
-      }
-      return token;
+export async function auth(): Promise<{ user: SessionUser } | null> {
+  if (!isSupabaseConfigured()) return null;
+
+  const supabase = createServerSupabase();
+  const { data } = await supabase.auth.getUser();
+  const user = data.user;
+  if (!user?.email) return null;
+
+  const metadata = user.app_metadata as { role?: StaffRole; instructor_id?: string | null };
+  const profile = await prisma.profile.upsert({
+    where: { id: user.id },
+    update: { email: user.email },
+    create: {
+      id: user.id,
+      email: user.email,
+      role: metadata.role ?? "STUDENT",
+      instructorId: metadata.instructor_id ?? null,
     },
-    session: ({ session, token }) => {
-      (session.user as any).role = token.role;
-      (session.user as any).instructorId = token.instructorId;
-      return session;
+  });
+
+  return {
+    user: {
+      id: profile.id,
+      email: profile.email,
+      role: profile.role,
+      instructorId: profile.instructorId ?? undefined,
     },
-  },
-});
+  };
+}

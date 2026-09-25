@@ -1,6 +1,8 @@
 import { Prisma } from "@prisma/client";
 import { auth } from "@/lib/auth";
+import { sendLoginLinkEmail } from "@/lib/email";
 import { prisma } from "@/lib/prisma";
+import { ensureAuthUser, magicLinkFor } from "@/lib/supabase/accounts";
 import {
   availabilityExceptionSchema,
   availabilityRuleSchema,
@@ -66,8 +68,17 @@ export async function createInstructor(input: unknown) {
   if (!parsed.success) return { ok: false as const, status: 400, error: "Ongeldige instructeur." };
 
   const instructor = await prisma.instructor.create({
-    data: { name: parsed.data.name, transmission: parsed.data.transmission, active: true },
+    data: { name: parsed.data.name, email: parsed.data.email.toLowerCase(), transmission: parsed.data.transmission, active: true },
   });
+  try {
+    await ensureAuthUser({ email: instructor.email!, role: "INSTRUCTOR", instructorId: instructor.id });
+    const magicLinkUrl = await magicLinkFor(instructor.email!, "/admin/agenda");
+    await sendLoginLinkEmail({ to: instructor.email!, name: instructor.name, magicLinkUrl });
+  } catch (error) {
+    await prisma.instructor.delete({ where: { id: instructor.id } });
+    const message = error instanceof Error ? error.message : "Account aanmaken mislukt.";
+    return { ok: false as const, status: 500, error: message };
+  }
   return {
     ok: true as const,
     instructor: { ...instructor, availabilityRules: [], availabilityExceptions: [] },
@@ -206,7 +217,7 @@ export async function removeInstructor(id: string) {
     await prisma.$transaction([
       prisma.availabilityRule.deleteMany({ where: { instructorId: id } }),
       prisma.availabilityException.deleteMany({ where: { instructorId: id } }),
-      prisma.staffUser.updateMany({ where: { instructorId: id }, data: { instructorId: null } }),
+      prisma.profile.updateMany({ where: { instructorId: id }, data: { instructorId: null } }),
       prisma.instructor.delete({ where: { id } }),
     ]);
   } catch (error) {

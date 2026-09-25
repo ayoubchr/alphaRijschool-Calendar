@@ -5,6 +5,7 @@ import { AdminSidebar } from "./AdminSidebar";
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   const session = await auth();
   if (!session) redirect("/admin/login");
+  if (session.user.role === "STUDENT") redirect("/mijn-lessen");
 
   return (
     <div className="flex min-h-screen flex-1 flex-col bg-[#f4f4f5] md:flex-row">

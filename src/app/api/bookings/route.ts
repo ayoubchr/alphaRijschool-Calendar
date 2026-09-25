@@ -15,7 +15,7 @@ export async function POST(request: NextRequest) {
   if (!parsed.success) {
     return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
   }
-  const { packageId, transmission, instructorId, slots, details } = parsed.data;
+  const { packageId, transmission, slots, details } = parsed.data;
 
   const pkg = await getPackageById(packageId);
   if (!pkg) {
@@ -32,9 +32,15 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  const seen = new Set<string>();
   for (const slot of slots) {
+    const key = `${slot.instructorId}:${slot.startAt}`;
+    if (seen.has(key)) {
+      return NextResponse.json({ error: "Je koos hetzelfde lesmoment twee keer." }, { status: 400 });
+    }
+    seen.add(key);
     const validationError = await validateRequestedSlot({
-      instructorId,
+      instructorId: slot.instructorId,
       transmission,
       startAt: new Date(slot.startAt),
       endAt: new Date(slot.endAt),
@@ -52,7 +58,7 @@ export async function POST(request: NextRequest) {
     const result = await prisma.$transaction(async (tx) => {
       const dossier = await tx.dossier.create({
         data: {
-          email: details.email,
+          email: details.email.toLowerCase(),
           firstName: details.firstName,
           lastName: details.lastName,
           phone: details.phone,
@@ -72,7 +78,7 @@ export async function POST(request: NextRequest) {
         const lesson = await tx.lesson.create({
           data: {
             dossierId: dossier.id,
-            instructorId,
+            instructorId: slot.instructorId,
             packageId: pkg.id,
             startAt: new Date(slot.startAt),
             endAt: new Date(slot.endAt),
@@ -106,7 +112,7 @@ export async function POST(request: NextRequest) {
   try {
     const payment = await createDepositPayment({
       amountCents: amount,
-      description: `Voorschot ${pkg.name}`,
+      description: `Eerste les + inschrijving ${pkg.name}`,
       redirectUrl: `${process.env.APP_URL}/boeken/bevestiging?dossier=${dossierId}`,
       webhookUrl: `${process.env.APP_URL}/api/webhooks/mollie`,
       metadata: { dossierId },

@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
+import { canCancelWithRefund } from "@/lib/cancellation";
 import { AgendaView } from "./AgendaView";
 
 export default async function AdminAgendaPage() {
@@ -25,6 +26,10 @@ export default async function AdminAgendaPage() {
         status: lesson.status,
         dossier: { firstName: lesson.dossier.firstName, lastName: lesson.dossier.lastName },
         instructor: { name: lesson.instructor.name },
+        instructorId: lesson.instructorId,
+        packageId: lesson.packageId,
+        transmission: lesson.dossier.transmission === "MANUEEL" ? "MANUEEL" : "AUTOMAAT",
+        canChange: canCancelWithRefund(lesson.startAt),
       }))}
     />
   );

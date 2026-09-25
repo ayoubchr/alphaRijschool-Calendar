@@ -77,6 +77,7 @@ export function SiteHeader() {
           </nav>
 
           <div className="flex items-center gap-3">
+            <Link href="/login" className="hidden text-sm font-semibold text-[#111827] sm:inline">Mijn lessen</Link>
             <Link href="/boeken" className="btn-primary px-5">
               Boek nu
               <span aria-hidden>→</span>
@@ -115,6 +116,7 @@ export function SiteHeader() {
                   {link.label}
                 </Link>
               ))}
+              <Link href="/login" className="nav-link w-fit text-lg">Mijn lessen</Link>
               <a href={PHONE_HREF} className="nav-link w-fit text-lg">
                 {PHONE}
               </a>
