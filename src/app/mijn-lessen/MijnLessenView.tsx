@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { IoLogOutOutline } from "react-icons/io5";
 import { LessonCalendar, type Slot } from "@/components/LessonCalendar";
 import { addBrusselsDays, startOfBrusselsWeek } from "@/lib/brusselsWeek";
 import { cancelOwnLesson, logoutStudent, moveOwnLesson, planLessons } from "./actions";
@@ -31,13 +32,16 @@ export function MijnLessenView({ dossiers }: { dossiers: StudentDossier[] }) {
 
   return (
     <div className="mx-auto max-w-5xl px-6 py-12">
-      <div className="mb-8 flex items-start justify-between gap-4">
+      <div className="mb-8 flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-extrabold text-[#111827]">Mijn lessen</h1>
           <p className="mt-2 text-sm text-[#58595b]">Plan resterende uren, of annuleer en verplaats tot 2 dagen op voorhand.</p>
         </div>
         <form action={logoutStudent}>
-          <button className="rounded-[10px] border border-black/10 px-4 py-2 text-sm font-semibold">Uitloggen</button>
+          <button type="submit" className="btn-outline">
+            <IoLogOutOutline className="h-[18px] w-[18px]" aria-hidden />
+            Uitloggen
+          </button>
         </form>
       </div>
       {error && <p className="mb-4 text-sm text-[#ed1c24]">{error}</p>}
