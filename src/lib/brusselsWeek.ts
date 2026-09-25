@@ -63,6 +63,11 @@ export function startOfBrusselsWeek(anchor: Date): Date {
   return brusselsMidnight(monday.year, monday.month, monday.day);
 }
 
+/** A lesson can be planned from tomorrow onward, in Europe/Brussels. */
+export function isTooSoonToPlan(startAt: Date, now = new Date()) {
+  return brusselsDateKey(startAt) <= brusselsDateKey(now);
+}
+
 export function addBrusselsDays(midnight: Date, days: number): Date {
   const { year, month, day } = brusselsYmd(midnight);
   const next = addCalendarDays(year, month, day, days);

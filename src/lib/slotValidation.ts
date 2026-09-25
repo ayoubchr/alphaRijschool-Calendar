@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { computeAvailableSlots } from "@/lib/availability";
+import { isTooSoonToPlan } from "@/lib/brusselsWeek";
 import { LESSON_BLOCK_MINUTES } from "@/lib/constants";
 
 export interface SlotValidationError {
@@ -25,6 +26,10 @@ export async function validateRequestedSlot(params: {
   endAt: Date;
 }): Promise<SlotValidationError | null> {
   const { instructorId, transmission, startAt, endAt } = params;
+
+  if (isTooSoonToPlan(startAt)) {
+    return { status: 400, message: "Een les kan ten vroegste morgen ingepland worden." };
+  }
 
   const durationMs = endAt.getTime() - startAt.getTime();
   if (durationMs !== LESSON_BLOCK_MINUTES * 60_000) {

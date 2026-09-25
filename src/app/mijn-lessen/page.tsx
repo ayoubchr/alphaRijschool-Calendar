@@ -27,6 +27,7 @@ export default async function MijnLessenPage() {
       startAt: lesson.startAt.toISOString(),
       endAt: lesson.endAt.toISOString(),
       status: lesson.status,
+      instructorId: lesson.instructorId,
       instructorName: lesson.instructor.name,
       canChange: lesson.status !== "CANCELLED" && lesson.status !== "COMPLETED" && canCancelWithRefund(lesson.startAt),
     })),

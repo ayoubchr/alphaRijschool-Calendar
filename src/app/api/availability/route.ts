@@ -3,6 +3,7 @@ import { Prisma, type Transmission } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { computeAvailableSlots } from "@/lib/availability";
 import { LESSON_BLOCK_MINUTES } from "@/lib/constants";
+import { isTooSoonToPlan } from "@/lib/brusselsWeek";
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
@@ -70,7 +71,7 @@ export async function GET(request: NextRequest) {
       rangeEnd,
       lessonDurationMinutes: LESSON_BLOCK_MINUTES,
       weekdayFilter,
-    }),
+    }).filter((slot) => !isTooSoonToPlan(slot.startAt)),
   }));
 
   return NextResponse.json(result);
