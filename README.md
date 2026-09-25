@@ -1,4 +1,4 @@
-# Alpha Rijschool
+# 🚀 Alpha Rijschool
 
 Boekingsapp voor Alpha Rijschool: publieke site, pakket boeken met kalender en voorschot via Mollie (enkel bancontact), leerlingdossier, en een dashboard voor personeel.
 
@@ -17,7 +17,7 @@ npm run dev
 
 De site draait op [http://localhost:3000](http://localhost:3000). Inloggen als personeel: `/admin`.
 
-## Belangrijk
+## 📣 Belangrijk
 
 > `APP_URL` moet een **publieke** URL zijn. Mollie stuurt de betaalstatus naar `/api/webhooks/mollie`; localhost is daarvoor niet bereikbaar.
 
