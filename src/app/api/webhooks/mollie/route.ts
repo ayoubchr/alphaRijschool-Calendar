@@ -70,7 +70,7 @@ export async function POST(request: NextRequest) {
     });
     await notifyStaffOfLessons({
       title: "Nieuwe lessen ingepland",
-      intro: `${studentName} heeft een voorschot betaald. Deze lessen staan in de agenda.`,
+      intro: `${studentName} heeft een les ingepland. Deze lessen staan in de agenda.`,
       lessons,
     });
   } else if (["failed", "canceled", "expired"].includes(status)) {

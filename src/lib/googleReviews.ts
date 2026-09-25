@@ -1,4 +1,7 @@
+import fallbackPlace from "../../reviews.json";
+
 const PLACE_QUERY = "Alpha Rijschool, Turnhoutsebaan 76B, 2100 Antwerpen";
+const MAPS_URL = "https://www.google.com/maps/search/?api=1&query=Alpha+Rijschool+Turnhoutsebaan+76B";
 const REVALIDATE_SECONDS = 60 * 60 * 12;
 
 export type GoogleReview = {
@@ -38,9 +41,22 @@ type PlaceDetails = {
   reviews?: PlaceReview[];
 };
 
+function fallbackReviews(): GoogleReviewSummary {
+  const reviews = fallbackPlace.reviews
+    .map((review, index) => toReview(review, index))
+    .filter((review): review is GoogleReview => review !== null);
+
+  return {
+    rating: fallbackPlace.rating,
+    reviewCount: fallbackPlace.userRatingCount,
+    mapsUrl: MAPS_URL,
+    reviews,
+  };
+}
+
 export async function getGoogleReviews(): Promise<GoogleReviewSummary | null> {
   const apiKey = process.env.GOOGLE_PLACES_API_KEY;
-  if (!apiKey) return null;
+  if (!apiKey) return fallbackReviews();
 
   try {
     const placeId = process.env.GOOGLE_PLACE_ID || (await findPlaceId(apiKey));
@@ -69,7 +85,7 @@ export async function getGoogleReviews(): Promise<GoogleReviewSummary | null> {
     return {
       rating: place.rating,
       reviewCount: place.userRatingCount,
-      mapsUrl: place.googleMapsUri ?? "https://www.google.com/maps/search/?api=1&query=Alpha+Rijschool+Turnhoutsebaan+76B",
+      mapsUrl: place.googleMapsUri ?? MAPS_URL,
       reviews,
     };
   } catch {

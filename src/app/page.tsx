@@ -1,5 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
+import { ReviewsSection } from "@/components/ReviewsSection";
 import { getGoogleReviews } from "@/lib/googleReviews";
 import { PiMedalLight } from "react-icons/pi";
 import { IoCarSportOutline, IoCalendarOutline } from "react-icons/io5";
@@ -46,18 +47,6 @@ function FeatureIcon({ name }: { name: (typeof FEATURES)[number]["icon"] }) {
   if (name === "badge") return <PiMedalLight className={className} />;
   if (name === "calendar") return <IoCalendarOutline className={className} />;
   return <SlPhone className={className} />;
-}
-
-function Stars({ rating }: { rating: number }) {
-  return (
-    <div className="flex gap-0.5 text-brand-red" aria-label={`${rating} van 5 sterren`}>
-      {Array.from({ length: 5 }).map((_, index) => (
-        <svg key={index} viewBox="0 0 20 20" className={`h-4 w-4 fill-current ${index < rating ? "" : "opacity-30"}`} aria-hidden>
-          <path d="M10 1.6l2.2 4.6 5 .7-3.6 3.5.9 5.1L10 13.2 5.5 15.5l.9-5.1L2.8 6.9l5-.7L10 1.6z" />
-        </svg>
-      ))}
-    </div>
-  );
 }
 
 export default async function Home() {
@@ -164,53 +153,7 @@ export default async function Home() {
         </div>
       </section>
 
-      {googleReviews && (
-        <section className="bg-white px-4 py-16 sm:px-6" aria-labelledby="ervaringen-titel">
-          <div className="mx-auto max-w-6xl">
-            <h2 id="ervaringen-titel" className="text-center text-3xl font-extrabold text-brand-navy">
-              Ervaringen
-            </h2>
-            <p className="mb-10 mt-3 text-center text-sm text-brand-gray">
-              {googleReviews.rating ? `${googleReviews.rating.toLocaleString("nl-BE")} / 5` : "Google-reviews"}
-              {googleReviews.reviewCount ? ` · ${googleReviews.reviewCount} beoordelingen` : ""}
-              {" · "}
-              <a href={googleReviews.mapsUrl} target="_blank" rel="noreferrer" className="font-semibold text-brand-red underline">
-                Bekijk op Google
-              </a>
-            </p>
-            <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
-              {googleReviews.reviews.map((review) => (
-                <article key={review.id} className="flex flex-col rounded-2xl bg-white p-6 shadow-[0_10px_30px_rgba(20,20,26,0.08)]">
-                  <div className="flex items-center gap-3">
-                    <span className="flex h-10 w-10 items-center justify-center rounded-full bg-brand-navy text-sm font-bold text-white">
-                      {review.author
-                        .split(" ")
-                        .slice(0, 2)
-                        .map((part) => part[0])
-                        .join("")
-                        .toUpperCase()}
-                    </span>
-                    <div>
-                      {review.authorUrl ? (
-                        <a href={review.authorUrl} target="_blank" rel="noreferrer" className="font-bold hover:text-brand-red">
-                          {review.author}
-                        </a>
-                      ) : (
-                        <h3 className="font-bold">{review.author}</h3>
-                      )}
-                      {review.relativeTime && <p className="text-xs text-neutral-500">{review.relativeTime}</p>}
-                    </div>
-                  </div>
-                  <div className="mt-3">
-                    <Stars rating={review.rating} />
-                  </div>
-                  <p className="mt-3 text-sm leading-relaxed text-brand-gray">{review.text}</p>
-                </article>
-              ))}
-            </div>
-          </div>
-        </section>
-      )}
+      {googleReviews && <ReviewsSection summary={googleReviews} />}
 
       <section className="bg-brand-navy px-4 py-16 text-center text-white sm:px-6">
         <h2 className="text-3xl font-extrabold text-white">Klaar om te beginnen?</h2>
