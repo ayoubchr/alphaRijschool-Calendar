@@ -100,7 +100,7 @@ export default function FaqPage() {
         eyebrow="Hulp bij je keuze"
         title="Veelgestelde vragen"
         description="Antwoorden over M12, stageattesten, verplichte uren en hoe je je inschrijft."
-        imageSrc="/illustraties/hero-theorie.png"
+        imageSrc="/illustraties/hero-theorie.svg"
         imageAlt="Theorieles met verkeersborden"
       />
       <section className="mx-auto max-w-3xl px-6 py-16">

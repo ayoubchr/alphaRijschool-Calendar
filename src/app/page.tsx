@@ -73,7 +73,7 @@ export default async function Home() {
             </div>
           </div>
           <Image
-            src="/illustraties/hero-theorie.png"
+            src="/illustraties/hero-theorie.svg"
             alt="Instructeur legt verkeersborden uit aan leerlingen"
             width={1280}
             height={720}

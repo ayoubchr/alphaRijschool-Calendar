@@ -17,7 +17,7 @@ export default function TheoriePage() {
         eyebrow="12 uur · 3 dagen"
         title="Theorie"
         description="Uitgebreide voorbereiding op je theorie-examen, in het Nederlands en met veel oefenvragen."
-        imageSrc="/illustraties/hero-theorie.png"
+        imageSrc="/illustraties/hero-theorie.svg"
         imageAlt="Theorieles met verkeersborden en leerlingen"
         priority
       >
