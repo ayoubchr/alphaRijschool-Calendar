@@ -9,11 +9,11 @@ export const WHATSAPP_HREF = "https://wa.me/32486295375";
 
 export const NAV_LINKS = [
   { href: "/", label: "Home" },
-  { href: "/over-ons", label: "Over ons" },
   { href: "/theorie", label: "Theorie" },
   { href: "/tarieven-pakketten", label: "Tarieven" },
   { href: "/veelgestelde-vragen", label: "FAQ" },
   { href: "/contact", label: "Contact" },
+  { href: "/over-ons", label: "Over ons" },
 ] as const;
 
 export const SOCIALS = [

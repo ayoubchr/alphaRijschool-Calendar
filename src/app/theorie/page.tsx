@@ -30,8 +30,11 @@ export default function TheoriePage() {
         <div>
           <h2 className="text-3xl font-extrabold text-brand-navy">Theorieles</h2>
           <p className="mt-4 text-lg leading-relaxed text-[#58595b]">
-            Dit pakket van 12 uur biedt uitgebreide theorielessen om je voor te bereiden op het theorie-examen.
-            De lessen zijn in het Nederlands en verdeeld over 3 dagen.
+            Je kunt onze 12 uur theorielessen volgen als voorbereiding op je theorie-examen, 
+            ook als je nog niet eerder examen hebt gedaan of gezakt bent. 
+            Ben je twee keer niet geslaagd? Dan zijn deze lessen verplicht.
+            De lessen worden in het Nederlands gegeven en zijn verdeeld over drie dagen. 
+            We helpen je de leerstof stap voor stap te begrijpen en je goed voor te bereiden op het examen.
           </p>
           <p className="mt-4 text-[#58595b]">
             De inschrijvingskosten van €25 zijn verplicht bij elk pakket en dekken de administratieve kosten.
@@ -74,21 +77,6 @@ export default function TheoriePage() {
             ))}
           </ul>
         </div>
-      </section>
-
-      <section className="mx-auto max-w-3xl px-6 py-16">
-        <h2 className="text-3xl font-extrabold text-brand-navy">Theorie-attest</h2>
-        <p className="mt-4 leading-relaxed text-[#58595b]">
-          Ben je 2 keer niet geslaagd voor het theorie-examen? Dan moet je de verplichte 12 uur theorielessen volgen.
-          Bij Rijschool Alpha ben je op het juiste adres om te slagen voor je theorie-examen.
-        </p>
-        <p className="mt-4 leading-relaxed text-[#58595b]">
-          Tijdens onze 12 uur theorieles (verdeeld over 3 dagen) leer je op een leuke, gemakkelijk te begrijpen manier
-          alle theoriestof die nodig is om te kunnen slagen.
-        </p>
-        <Link href="/boeken" className="btn-primary mt-8">
-          Schrijf je in voor theorie
-        </Link>
       </section>
       <Graduates />
     </div>
