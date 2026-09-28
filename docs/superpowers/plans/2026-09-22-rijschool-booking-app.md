@@ -564,7 +564,7 @@ async function main() {
       { name: "6 uur - 2x mislukt examen", description: "Voor wie 2 keer gezakt is voor het examen.", hours: 6, priceAutomaat: 48000, priceManueel: 45000, registrationFee: 2500 },
       { name: "M12 Voorlopig Rijbewijs Pakket", description: "Behaal je M12 voorlopig rijbewijs.", hours: 6, priceAutomaat: 48000, priceManueel: 45000, registrationFee: 2500 },
       { name: "Losse Rijles (2 uur)", description: "Extra oefening voor specifieke vaardigheden.", hours: 2, priceAutomaat: 16000, priceManueel: 15000, registrationFee: 2500, isSingleLesson: true },
-      { name: "Losse Rijles (2u) + Praktijkexamen", description: "Nog wat oefenen en meteen examen afleggen.", hours: 2, priceAutomaat: 37500, priceManueel: 35000, registrationFee: 2500 },
+      { name: "Voorbereidingsles (2u) + Praktijkexamen", description: "Nog wat oefenen en meteen examen afleggen.", hours: 2, priceAutomaat: 37500, priceManueel: 35000, registrationFee: 2500 },
       { name: "Praktijkexamen", description: "Leg je praktijkexamen af.", hours: 0, priceAutomaat: 21500, priceManueel: 20000, registrationFee: 2500 },
       { name: "Theorieles Pakket (12 uur)", description: "Voorbereiding op het theorie-examen, verdeeld over 3 dagen.", hours: 12, priceAutomaat: 15000, priceManueel: 15000, registrationFee: 2500 },
     ],

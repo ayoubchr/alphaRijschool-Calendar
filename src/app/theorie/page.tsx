@@ -33,7 +33,7 @@ export default function TheoriePage() {
             Je kunt onze 12 uur theorielessen volgen als voorbereiding op je theorie-examen, 
             ook als je nog niet eerder examen hebt gedaan of gezakt bent. 
             Ben je twee keer niet geslaagd? Dan zijn deze lessen verplicht.
-            De lessen worden in het Nederlands gegeven en zijn verdeeld over drie dagen. 
+            De lessen worden in het Nederlands gegeven en zijn verdeeld over meerdere dagen. 
             We helpen je de leerstof stap voor stap te begrijpen en je goed voor te bereiden op het examen.
           </p>
           <p className="mt-4 text-[#58595b]">
