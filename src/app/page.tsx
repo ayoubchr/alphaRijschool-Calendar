@@ -144,7 +144,7 @@ export default async function Home() {
             </Link>
           </div>
           <Image
-            src="/sfeerbeeld-home.webp"
+            src="/sfeerbeeld-home.jpeg"
             alt="Lesauto's van Alpha Rijschool"
             width={706}
             height={706}
