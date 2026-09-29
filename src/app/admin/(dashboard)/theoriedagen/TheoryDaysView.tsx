@@ -67,7 +67,7 @@ export function TheoryDaysView({ days: initial }: { days: TheoryDayRow[] }) {
       <p className="text-sm font-semibold uppercase tracking-[0.16em] text-[#ed1c24]">Theorie</p>
       <h1 className="mt-2 text-3xl font-extrabold text-[#111827]">Theoriedagen</h1>
       <p className="mt-2 max-w-2xl text-sm leading-relaxed text-[#58595b]">
-        Plan hier de dagen waarop theorieles gegeven wordt. Elke dag duurt 6 uur en staat los van de beschikbaarheid van instructeurs. Studenten zien alleen deze dagen bij het boeken en verplaatsen.
+        Plan hier de dagen waarop theorieles gegeven wordt.
       </p>
 
       <form onSubmit={onCreate} className="mt-8 grid gap-4 rounded-2xl border border-black/10 bg-white p-5 shadow-sm sm:grid-cols-[1fr_160px_auto] sm:items-end">

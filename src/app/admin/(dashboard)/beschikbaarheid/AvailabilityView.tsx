@@ -139,7 +139,7 @@ export function AvailabilityView({
     <div>
       <h1 className="mb-2 text-2xl font-extrabold text-[#111827]">Beschikbaarheid</h1>
       <p className="mb-6 max-w-3xl text-sm text-[#58595b]">
-        Sleep over de blokken om ze in één beweging open of dicht te zetten. Eén klik blijft werken. ‘Elke week’ zet dezelfde uren op elke maandag, dinsdag, …
+        Sleep over de blokken om ze in één beweging open of dicht te zetten. ‘Elke week’ zet dezelfde uren op elke maandag, dinsdag, …
       </p>
       {error && <p className="mb-4 text-sm text-[#ed1c24]">{error}</p>}
 
