@@ -28,7 +28,7 @@ const PACKAGE_COPY: Record<string, { tagline: string; text: string }> = {
     tagline: "Extra oefening voor specifieke vaardigheden",
     text: "Wil je extra oefenen? Boek een losse rijles om specifieke vaardigheden te verbeteren of om meer ervaring op te doen op de weg.",
   },
-  "Losse Rijles (2u) + Praktijkexamen": {
+  "Voorbereidingsles (2u) + Praktijkexamen": {
     tagline: "Overloop je kennis en leg het examen af",
     text: "Wil je voor het examen op je eigen tempo nog wat extra oefenen? Boek een losse rijles van 2 uur om je kennis op te frissen en leg daarna meteen je praktijkexamen af.",
   },

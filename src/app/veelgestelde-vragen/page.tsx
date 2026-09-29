@@ -31,15 +31,7 @@ const faqs: { q: string; a: ReactNode }[] = [
   },
   {
     q: "Hoeveel kost een rijles en een examenbegeleiding? Zijn er kortingen voor studenten of andere kortingen?",
-    a: (
-      <>
-        Onze prijzen staan op de pagina{" "}
-        <Link href="/tarieven-pakketten" className="font-semibold text-[#ed1c24] underline">
-          Tarieven + Pakketten
-        </Link>
-        . We werken niet met kortingen.
-      </>
-    ),
+    a: "Vraag onze medewerkers naar onze dagelijkse acties!",
   },
   {
     q: "Geven jullie momenteel theorielessen?",
@@ -49,7 +41,7 @@ const faqs: { q: string; a: ReactNode }[] = [
         <Link href="/theorie" className="font-semibold text-[#ed1c24] underline">
           Theorie
         </Link>
-        . Als daar geen theorielessen zichtbaar zijn, dan geven we momenteel geen theorielessen.
+        . Schrijf je meteen in!.
       </>
     ),
   },
@@ -79,11 +71,11 @@ const faqs: { q: string; a: ReactNode }[] = [
   },
   {
     q: "Mag ik al rijles nemen als ik nog niet geslaagd ben voor de theorie?",
-    a: "Ja. We raden wel aan om de theorie door te nemen alvorens je naar de rijles komt.",
+    a: "Je kan 20 uur voor je theorie doen en zo leer je extra bij en haal je sneller je theorie-examen.",
   },
   {
     q: "Hoeveel lessen moet ik nemen?",
-    a: "Dat hangt er van af in welke situatie u zich bevindt. U bent verplicht om 20u rijles te nemen indien u een voorlopig rijbewijs wenst te bekomen waarmee u alleen mag oefenen (M18).",
+    a: "Dat hangt er van af in welke situatie u zich bevindt. U bent verplicht minimaal 20u rijles te nemen indien u een voorlopig rijbewijs wenst te bekomen waarmee u alleen mag oefenen (M18).",
   },
   {
     q: "Kan ik examen afleggen en les nemen in mijn eigen wagen?",
@@ -100,7 +92,7 @@ export default function FaqPage() {
         eyebrow="Hulp bij je keuze"
         title="Veelgestelde vragen"
         description="Antwoorden over M12, stageattesten, verplichte uren en hoe je je inschrijft."
-        imageSrc="/illustraties/hero-theorie.png"
+        imageSrc="/illustraties/hero-theorie.svg"
         imageAlt="Theorieles met verkeersborden"
       />
       <section className="mx-auto max-w-3xl px-6 py-16">
