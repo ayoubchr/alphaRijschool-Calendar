@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
+import { isTheoryPackage } from "@/lib/lessonBlocks";
 import { formatEuro } from "@/lib/money";
 import { depositBreakdown } from "@/lib/pricing";
 import type { PackageDTO } from "./PackageStep";
@@ -51,21 +52,23 @@ export function SummaryStep({ selectedPackage, transmission, slots, details, onB
     <div>
       <h1 className="mb-6 text-2xl font-extrabold text-[#111827]">Samenvatting</h1>
       <div className="space-y-2 rounded-[10px] bg-[#f9f9f9] p-5 text-sm">
-        <p><strong>Pakket:</strong> {selectedPackage.name} ({transmission === "AUTOMAAT" ? "automaat" : "manueel"})</p>
+        <p><strong>Pakket:</strong> {selectedPackage.name}{isTheoryPackage(selectedPackage) ? "" : ` (${transmission === "AUTOMAAT" ? "automaat" : "manueel"})`}</p>
         <p><strong>Lessen ({slots.length}):</strong></p>
         <ul className="list-disc pl-5">
           {slots.map((slot) => (
             <li key={`${slot.instructorId}-${slot.startAt}`}>
-              {new Date(slot.startAt).toLocaleString("nl-BE", { timeZone: "Europe/Brussels" })} · {slot.instructorName}
+              {new Date(slot.startAt).toLocaleString("nl-BE", { timeZone: "Europe/Brussels" })}{isTheoryPackage(selectedPackage) ? "" : ` · ${slot.instructorName}`}
             </li>
           ))}
         </ul>
         <p><strong>Naam:</strong> {details.firstName} {details.lastName}</p>
         <div className="border-t border-black/10 pt-3">
           <p className="mb-2 text-[#58595b]">
-            {payment.lessonLabel === "Eerste les"
-              ? "Je betaalt nu de eerste les van 2 uur en de inschrijvingskosten. De rest van het pakket volgt later."
-              : "Je betaalt nu het praktijkexamen en de inschrijvingskosten."}
+            {payment.lessonLabel === "Eerste theoriedag"
+              ? "Je betaalt nu de eerste theoriedag van 6 uur en de inschrijvingskosten."
+              : payment.lessonLabel === "Eerste les"
+                ? "Je betaalt nu de eerste les van 2 uur en de inschrijvingskosten. De rest van het pakket volgt later."
+                : "Je betaalt nu het praktijkexamen en de inschrijvingskosten."}
           </p>
           <p className="flex justify-between"><span>{payment.lessonLabel}</span><span>{formatEuro(payment.lessonAmount)}</span></p>
           <p className="flex justify-between"><span>Inschrijvingskosten</span><span>{formatEuro(payment.registrationFee)}</span></p>

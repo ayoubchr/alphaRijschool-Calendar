@@ -4,12 +4,13 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { IconType } from "react-icons";
-import { IoCalendarOutline, IoLogOutOutline, IoPeopleOutline, IoTimeOutline } from "react-icons/io5";
+import { IoBookOutline, IoCalendarOutline, IoLogOutOutline, IoPeopleOutline, IoTimeOutline } from "react-icons/io5";
 import { logout } from "./actions";
 
 const LINKS: { href: string; label: string; icon: IconType; adminOnly?: boolean }[] = [
   { href: "/admin/agenda", label: "Agenda", icon: IoCalendarOutline },
   { href: "/admin/beschikbaarheid", label: "Beschikbaarheid", icon: IoTimeOutline },
+  { href: "/admin/theoriedagen", label: "Theoriedagen", icon: IoBookOutline, adminOnly: true },
   { href: "/admin/dossiers", label: "Dossiers", icon: IoPeopleOutline, adminOnly: true },
 ];
 

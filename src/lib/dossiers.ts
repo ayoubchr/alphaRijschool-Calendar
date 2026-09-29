@@ -1,3 +1,4 @@
+import { lessonInstructorName } from "@/lib/lessonBlocks";
 import { prisma } from "@/lib/prisma";
 import { isMagicLinkValid } from "@/lib/magicLink";
 
@@ -34,7 +35,7 @@ export function toPublicDossier(dossier: DossierWithRelations) {
       startAt: lesson.startAt.toISOString(),
       endAt: lesson.endAt.toISOString(),
       status: lesson.status,
-      instructor: { name: lesson.instructor.name },
+      instructor: { name: lessonInstructorName(lesson.instructor) },
     })),
   };
 }

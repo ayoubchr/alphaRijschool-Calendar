@@ -75,6 +75,21 @@ export async function sendBookingConfirmationEmail(params: {
   });
 }
 
+export async function sendInstructorInviteEmail(params: { to: string; name: string; inviteUrl: string }) {
+  await send({
+    to: params.to,
+    subject: "Uitnodiging voor Alpha Rijschool",
+    react: (
+      <EmailLayout
+        preview="Stel je wachtwoord in voor Alpha Rijschool"
+        title="Uitnodiging"
+        intro={`Beste ${params.name}, je bent toegevoegd als instructeur. Kies via deze link zelf een wachtwoord. Daarna log je in met je e-mailadres en dat wachtwoord.`}
+        action={{ href: params.inviteUrl, label: "Wachtwoord instellen" }}
+      />
+    ),
+  });
+}
+
 export async function sendLoginLinkEmail(params: { to: string; name: string; magicLinkUrl: string }) {
   await send({
     to: params.to,

@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { computeAvailableSlots } from "@/lib/availability";
 import { isTooSoonToPlan } from "@/lib/brusselsWeek";
-import { LESSON_BLOCK_MINUTES } from "@/lib/constants";
+import { THEORY_DAY_MINUTES } from "@/lib/lessonBlocks";
 
 export interface SlotValidationError {
   status: number;
@@ -24,15 +24,19 @@ export async function validateRequestedSlot(params: {
   transmission: "AUTOMAAT" | "MANUEEL";
   startAt: Date;
   endAt: Date;
+  durationMinutes: number;
+  theory?: boolean;
 }): Promise<SlotValidationError | null> {
-  const { instructorId, transmission, startAt, endAt } = params;
+  const { instructorId, transmission, startAt, endAt, durationMinutes, theory } = params;
+
+  if (theory) return validateTheorySlot(startAt, endAt);
 
   if (isTooSoonToPlan(startAt)) {
     return { status: 400, message: "Een les kan ten vroegste morgen ingepland worden." };
   }
 
   const durationMs = endAt.getTime() - startAt.getTime();
-  if (durationMs !== LESSON_BLOCK_MINUTES * 60_000) {
+  if (durationMs !== durationMinutes * 60_000) {
     return { status: 400, message: "Ongeldige lesduur." };
   }
 
@@ -70,7 +74,7 @@ export async function validateRequestedSlot(params: {
     bookedLessons: bookedLessons.map((l) => ({ startAt: l.startAt, endAt: l.endAt })),
     rangeStart,
     rangeEnd,
-    lessonDurationMinutes: LESSON_BLOCK_MINUTES,
+    lessonDurationMinutes: durationMinutes,
   });
 
   const isRealSlot = slots.some((s) => s.startAt.getTime() === startAt.getTime() && s.endAt.getTime() === endAt.getTime());
@@ -78,5 +82,17 @@ export async function validateRequestedSlot(params: {
     return { status: 409, message: "Dit tijdstip is niet beschikbaar." };
   }
 
+  return null;
+}
+
+async function validateTheorySlot(startAt: Date, endAt: Date): Promise<SlotValidationError | null> {
+  if (isTooSoonToPlan(startAt)) {
+    return { status: 400, message: "Een les kan ten vroegste morgen ingepland worden." };
+  }
+  if (endAt.getTime() - startAt.getTime() !== THEORY_DAY_MINUTES * 60_000) {
+    return { status: 400, message: "Ongeldige lesduur." };
+  }
+  const day = await prisma.theoryDay.findFirst({ where: { startAt, endAt } });
+  if (!day) return { status: 409, message: "Deze theoriedag is niet beschikbaar." };
   return null;
 }

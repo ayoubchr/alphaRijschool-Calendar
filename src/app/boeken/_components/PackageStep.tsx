@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { isTheoryPackage } from "@/lib/lessonBlocks";
 import { formatEuro } from "@/lib/money";
 
 export interface PackageDTO {
@@ -64,14 +65,23 @@ export function PackageStep({ selectedPackageId, onPackagesLoaded, onSelect }: P
               <span className="block text-lg font-extrabold text-[#111827]">{pkg.name}</span>
               <span className="mt-1 block text-sm leading-relaxed text-[#58595b]">{pkg.description}</span>
               <span className="mt-4 block space-y-2 rounded-lg bg-[#f9fafb] p-4 text-sm">
-                <span className="flex items-center justify-between">
-                  <span className="font-semibold text-[#111827]">Automaat</span>
-                  <span className="font-bold text-[#111827]">{formatEuro(pkg.priceAutomaat)}</span>
-                </span>
-                <span className="flex items-center justify-between">
-                  <span className="font-semibold text-[#111827]">Manueel</span>
-                  <span className="font-bold text-[#111827]">{formatEuro(pkg.priceManueel)}</span>
-                </span>
+                {isTheoryPackage(pkg) ? (
+                  <span className="flex items-center justify-between">
+                    <span className="font-semibold text-[#111827]">Prijs</span>
+                    <span className="font-bold text-[#111827]">{formatEuro(pkg.priceAutomaat)}</span>
+                  </span>
+                ) : (
+                  <>
+                    <span className="flex items-center justify-between">
+                      <span className="font-semibold text-[#111827]">Automaat</span>
+                      <span className="font-bold text-[#111827]">{formatEuro(pkg.priceAutomaat)}</span>
+                    </span>
+                    <span className="flex items-center justify-between">
+                      <span className="font-semibold text-[#111827]">Manueel</span>
+                      <span className="font-bold text-[#111827]">{formatEuro(pkg.priceManueel)}</span>
+                    </span>
+                  </>
+                )}
                 <span className="flex items-center justify-between border-t border-black/10 pt-2 text-xs text-[#58595b]">
                   <span>Inschrijvingskosten</span>
                   <span className="font-semibold">+ {formatEuro(pkg.registrationFee)}</span>

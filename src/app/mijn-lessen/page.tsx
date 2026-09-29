@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { canCancelWithRefund } from "@/lib/cancellation";
+import { lessonInstructorName, THEORY_INSTRUCTOR_ID } from "@/lib/lessonBlocks";
 import { prisma } from "@/lib/prisma";
 import { MijnLessenView, type StudentDossier } from "./MijnLessenView";
 
@@ -27,8 +28,8 @@ export default async function MijnLessenPage() {
       startAt: lesson.startAt.toISOString(),
       endAt: lesson.endAt.toISOString(),
       status: lesson.status,
-      instructorId: lesson.instructorId,
-      instructorName: lesson.instructor.name,
+      instructorId: lesson.instructorId ?? THEORY_INSTRUCTOR_ID,
+      instructorName: lessonInstructorName(lesson.instructor),
       canChange: lesson.status !== "CANCELLED" && lesson.status !== "COMPLETED" && canCancelWithRefund(lesson.startAt),
     })),
   }));

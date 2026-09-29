@@ -21,6 +21,8 @@ interface CalendarStepProps {
   packageId: string;
   transmission: "AUTOMAAT" | "MANUEEL";
   lessonCount: number;
+  blockHours?: number;
+  exact?: boolean;
   onConfirm: (slots: BookingSlot[]) => void;
   onBack: () => void;
 }
@@ -57,7 +59,7 @@ function groupByStart(slots: BookingSlot[]) {
   return grouped;
 }
 
-export function CalendarStep({ packageId, transmission, lessonCount, onConfirm, onBack }: CalendarStepProps) {
+export function CalendarStep({ packageId, transmission, lessonCount, blockHours = 2, exact = false, onConfirm, onBack }: CalendarStepProps) {
   const [weekStart, setWeekStart] = useState(() => startOfBrusselsWeek(new Date()));
   const [slots, setSlots] = useState<BookingSlot[]>([]);
   const [selected, setSelected] = useState<BookingSlot[]>([]);
@@ -113,6 +115,10 @@ export function CalendarStep({ packageId, transmission, lessonCount, onConfirm, 
 
   function addSlot(slot: BookingSlot) {
     setChoosing(null);
+    if (exact && selected.some((item) => brusselsDateKey(new Date(item.startAt)) === brusselsDateKey(new Date(slot.startAt)))) {
+      setError("Kies twee verschillende dagen.");
+      return;
+    }
     setError(null);
     setSelected((current) => {
       if (current.some((item) => item.startAt === slot.startAt)) return current;
@@ -138,8 +144,10 @@ export function CalendarStep({ packageId, transmission, lessonCount, onConfirm, 
     <div>
       <h1 className="mb-2 text-2xl font-extrabold text-[#111827]">Kies je lesmomenten</h1>
       <p className="mb-5 text-sm text-[#58595b]">
-        Kies tot {lessonCount} moment{lessonCount === 1 ? "" : "en"} van 2 uur. Wat je nu niet inplant, plan je later in je dossier.
-        Geselecteerd: {selected.length}/{lessonCount}.
+        {exact
+          ? `Kies ${lessonCount} dagen van ${blockHours} uur.`
+          : `Kies tot ${lessonCount} moment${lessonCount === 1 ? "" : "en"} van ${blockHours} uur. Wat je nu niet inplant, plan je later in je dossier.`}
+        {" "}Geselecteerd: {selected.length}/{lessonCount}.
       </p>
       {error && <p className="mb-3 text-sm text-[#ed1c24]">{error}</p>}
 
@@ -213,7 +221,7 @@ export function CalendarStep({ packageId, transmission, lessonCount, onConfirm, 
                         </li>
                       );
                     })}
-                    {cards.length === 0 && <li className="px-1 text-center text-[11px] text-[#58595b]">{loading ? "Laden…" : "Geen lessen"}</li>}
+                    {cards.length === 0 && <li className="px-1 text-center text-[11px] text-[#58595b]">{loading ? "Laden…" : exact ? "Geen theoriedag" : "Geen lessen"}</li>}
                   </ul>
                 </section>
               );
@@ -235,7 +243,7 @@ export function CalendarStep({ packageId, transmission, lessonCount, onConfirm, 
       <div className="mt-6 flex justify-between">
         <button onClick={onBack} className="text-sm text-gray-500">&larr; Terug</button>
         <button
-          disabled={selected.length === 0}
+          disabled={exact ? selected.length !== lessonCount : selected.length === 0}
           onClick={() => onConfirm(selected)}
           className="rounded-[10px] bg-[#ed1c24] px-6 py-3 font-semibold text-white transition hover:bg-[#111827] disabled:opacity-40"
         >

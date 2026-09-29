@@ -8,6 +8,7 @@ import { TransmissionStep } from "./_components/TransmissionStep";
 import { CalendarStep, type BookingSlot } from "./_components/CalendarStep";
 import { DetailsStep, type BookingDetails } from "./_components/DetailsStep";
 import { SummaryStep } from "./_components/SummaryStep";
+import { blockHoursForPackage, isTheoryPackage, THEORY_DAY_COUNT } from "@/lib/lessonBlocks";
 
 type Step = "package" | "transmission" | "calendar" | "details" | "summary";
 type Transmission = "AUTOMAAT" | "MANUEEL";
@@ -30,6 +31,18 @@ function BookingWizard() {
 
   const preselectedPackageId = searchParams.get("package");
   const didApplyPreselect = useRef(false);
+
+  function choosePackage(pkg: PackageDTO) {
+    setSelectedPackage(pkg);
+    setSlots([]);
+    if (isTheoryPackage(pkg)) {
+      setTransmission("AUTOMAAT");
+      setStep("calendar");
+      return;
+    }
+    setTransmission(null);
+    setStep("transmission");
+  }
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-10 sm:px-6">
@@ -58,7 +71,9 @@ function BookingWizard() {
             ["details", "Gegevens"],
             ["summary", "Bevestigen"],
           ] as const
-        ).map(([id, label], index) => (
+        )
+          .filter(([id]) => !(id === "transmission" && selectedPackage && isTheoryPackage(selectedPackage)))
+          .map(([id, label], index) => (
           <li
             key={id}
             className={`rounded-full px-3 py-1 ${step === id ? "bg-[#ed1c24] text-white" : "bg-[#f9f9f9]"}`}
@@ -76,15 +91,9 @@ function BookingWizard() {
             const match = packages.find((pkg) => pkg.id === preselectedPackageId);
             if (!match) return;
             didApplyPreselect.current = true;
-            setSelectedPackage(match);
-            setStep("transmission");
+            choosePackage(match);
           }}
-          onSelect={(pkg) => {
-            setSelectedPackage(pkg);
-            setTransmission(null);
-            setSlots([]);
-            setStep("transmission");
-          }}
+          onSelect={choosePackage}
         />
       )}
       {step === "transmission" && selectedPackage && (
@@ -101,12 +110,14 @@ function BookingWizard() {
         <CalendarStep
           packageId={selectedPackage.id}
           transmission={transmission}
-          lessonCount={Math.max(1, Math.floor(selectedPackage.hours / 2))}
+          lessonCount={isTheoryPackage(selectedPackage) ? THEORY_DAY_COUNT : Math.max(1, Math.floor(selectedPackage.hours / 2))}
+          blockHours={blockHoursForPackage(selectedPackage)}
+          exact={isTheoryPackage(selectedPackage)}
           onConfirm={(chosen) => {
             setSlots(chosen);
             setStep("details");
           }}
-          onBack={() => setStep("transmission")}
+          onBack={() => setStep(isTheoryPackage(selectedPackage) ? "package" : "transmission")}
         />
       )}
       {step === "details" && selectedPackage && (

@@ -14,7 +14,7 @@ export default function TheoriePage() {
   return (
     <div>
       <PageIntro
-        eyebrow="12 uur · 3 dagen"
+        eyebrow="12 uur · 2 dagen"
         title="Theorie"
         description="Uitgebreide voorbereiding op je theorie-examen, in het Nederlands en met veel oefenvragen."
         imageSrc="/illustraties/hero-theorie.png"
@@ -31,7 +31,7 @@ export default function TheoriePage() {
           <h2 className="text-3xl font-extrabold text-brand-navy">Theorieles</h2>
           <p className="mt-4 text-lg leading-relaxed text-[#58595b]">
             Dit pakket van 12 uur biedt uitgebreide theorielessen om je voor te bereiden op het theorie-examen.
-            De lessen zijn in het Nederlands en verdeeld over 3 dagen.
+            De lessen zijn in het Nederlands en altijd verdeeld over 2 dagen van 6 uur.
           </p>
           <p className="mt-4 text-[#58595b]">
             De inschrijvingskosten van €25 zijn verplicht bij elk pakket en dekken de administratieve kosten.
@@ -83,7 +83,7 @@ export default function TheoriePage() {
           Bij Rijschool Alpha ben je op het juiste adres om te slagen voor je theorie-examen.
         </p>
         <p className="mt-4 leading-relaxed text-[#58595b]">
-          Tijdens onze 12 uur theorieles (verdeeld over 3 dagen) leer je op een leuke, gemakkelijk te begrijpen manier
+          Tijdens onze 12 uur theorieles (2 dagen van 6 uur) leer je op een leuke, gemakkelijk te begrijpen manier
           alle theoriestof die nodig is om te kunnen slagen.
         </p>
         <Link href="/boeken" className="btn-primary mt-8">

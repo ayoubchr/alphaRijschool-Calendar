@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Graduates } from "@/components/Graduates";
 import { PageIntro } from "@/components/PageIntro";
+import { isTheoryPackage } from "@/lib/lessonBlocks";
 import { formatEuro } from "@/lib/money";
 import { getActivePackages } from "@/lib/packages";
 
@@ -37,7 +38,7 @@ const PACKAGE_COPY: Record<string, { tagline: string; text: string }> = {
   },
   "Theorieles Pakket (12 uur)": {
     tagline: "Uitgebreide voorbereiding op je theorie-examen",
-    text: "Dit pakket van 12 uur biedt uitgebreide theorielessen om je voor te bereiden op het theorie-examen, verdeeld over 3 dagen.",
+    text: "Dit pakket van 12 uur biedt uitgebreide theorielessen om je voor te bereiden op het theorie-examen, altijd over 2 dagen van 6 uur.",
   },
 };
 
@@ -64,14 +65,23 @@ export default async function TarievenPakkettenPage() {
                 <p className="mt-2 text-sm font-semibold text-[#ed1c24]">{copy?.tagline ?? pkg.description}</p>
                 <p className="mt-2 flex-1 text-sm leading-relaxed text-[#58595b]">{copy?.text ?? pkg.description}</p>
                 <div className="my-5 space-y-2 rounded-lg bg-[#f9fafb] p-4 text-sm">
-                  <div className="flex items-center justify-between">
-                    <span className="font-semibold">Automaat</span>
-                    <span className="font-bold">{formatEuro(pkg.priceAutomaat)}</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="font-semibold">Manueel</span>
-                    <span className="font-bold">{formatEuro(pkg.priceManueel)}</span>
-                  </div>
+                  {isTheoryPackage(pkg) ? (
+                    <div className="flex items-center justify-between">
+                      <span className="font-semibold">Prijs</span>
+                      <span className="font-bold">{formatEuro(pkg.priceAutomaat)}</span>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="flex items-center justify-between">
+                        <span className="font-semibold">Automaat</span>
+                        <span className="font-bold">{formatEuro(pkg.priceAutomaat)}</span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="font-semibold">Manueel</span>
+                        <span className="font-bold">{formatEuro(pkg.priceManueel)}</span>
+                      </div>
+                    </>
+                  )}
                   <div className="flex items-center justify-between border-t border-black/10 pt-2 text-xs text-[#58595b]">
                     <span>Inschrijvingskosten</span>
                     <span className="font-semibold">+ {formatEuro(pkg.registrationFee)}</span>

@@ -1,4 +1,5 @@
 import type { StaffRole } from "@prisma/client";
+import { sendInstructorInviteEmail } from "@/lib/email";
 import { prisma } from "@/lib/prisma";
 import { createAdminSupabase } from "@/lib/supabase/admin";
 
@@ -31,6 +32,42 @@ export async function ensureAuthUser(params: { email: string; role: StaffRole; i
     create: { id: userId, email, role, instructorId },
   });
   return profile;
+}
+
+export async function inviteInstructor(params: { email: string; name: string; instructorId: string }) {
+  const admin = createAdminSupabase();
+  const email = params.email.trim().toLowerCase();
+  const invited = await admin.auth.admin.generateLink({ type: "invite", email });
+  const userId = invited.data?.user?.id;
+  const tokenHash = invited.data?.properties?.hashed_token;
+  if (invited.error || !userId || !tokenHash) {
+    const message = invited.error?.message ?? "Uitnodiging kon niet worden gemaakt.";
+    if (/already|registered|exists/i.test(message)) {
+      throw new Error("Dit e-mailadres heeft al een account.");
+    }
+    throw new Error(message);
+  }
+
+  try {
+    await admin.auth.admin.updateUserById(userId, {
+      app_metadata: { role: "INSTRUCTOR", instructor_id: params.instructorId },
+    });
+    await prisma.profile.upsert({
+      where: { id: userId },
+      update: { email, role: "INSTRUCTOR", instructorId: params.instructorId },
+      create: { id: userId, email, role: "INSTRUCTOR", instructorId: params.instructorId },
+    });
+
+    const url = new URL("/auth/confirm", process.env.APP_URL);
+    url.searchParams.set("token_hash", tokenHash);
+    url.searchParams.set("type", "invite");
+    url.searchParams.set("next", "/admin/wachtwoord");
+    await sendInstructorInviteEmail({ to: email, name: params.name, inviteUrl: url.toString() });
+  } catch (error) {
+    await prisma.profile.deleteMany({ where: { id: userId } });
+    await admin.auth.admin.deleteUser(userId);
+    throw error;
+  }
 }
 
 export async function magicLinkFor(email: string, nextPath: string) {

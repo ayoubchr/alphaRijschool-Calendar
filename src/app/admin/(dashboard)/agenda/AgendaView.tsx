@@ -4,7 +4,14 @@ import { useEffect, useState } from "react";
 import { StatusBadge } from "../StatusBadge";
 import { LessonCalendar, type Slot } from "@/components/LessonCalendar";
 import { addBrusselsDays, brusselsDateKey, brusselsMidnight, brusselsYmd, startOfBrusselsWeek } from "@/lib/brusselsWeek";
+import { THEORY_LABEL } from "@/lib/lessonBlocks";
 import { cancelAgendaLesson, moveAgendaLesson } from "./actions";
+
+interface AgendaTheoryDay {
+  id: string;
+  startAt: string;
+  endAt: string;
+}
 
 interface AgendaLesson {
   id: string;
@@ -34,6 +41,7 @@ const LESSON_CHIP: Record<string, string> = {
   PLANNED: "border-amber-200 bg-amber-50 text-amber-950",
   CONFIRMED: "border-emerald-200 bg-emerald-50 text-emerald-950",
 };
+const THEORY_CHIP = "border-[#ed1c24]/20 bg-[#fff5f5] text-[#9f1239]";
 const MONTH = new Intl.DateTimeFormat("nl-BE", { timeZone: "Europe/Brussels", month: "long", year: "numeric" });
 const TIME = new Intl.DateTimeFormat("nl-BE", { timeZone: "Europe/Brussels", hour: "2-digit", minute: "2-digit" });
 
@@ -104,12 +112,18 @@ function shiftMonth(cursor: Date, delta: number) {
   return brusselsMidnight(next.getUTCFullYear(), next.getUTCMonth() + 1, 1);
 }
 
+function sameSlot(lesson: { startAt: string; endAt: string }, day: AgendaTheoryDay) {
+  return lesson.startAt === day.startAt && lesson.endAt === day.endAt;
+}
+
 export function AgendaView({
   lessons: initialLessons,
+  theoryDays,
   instructors,
   isAdmin,
 }: {
   lessons: AgendaLesson[];
+  theoryDays: AgendaTheoryDay[];
   instructors: { id: string; name: string }[];
   isAdmin: boolean;
 }) {
@@ -143,7 +157,16 @@ export function AgendaView({
   }
 
   const dossierOptions = Array.from(new Map(lessons.map((lesson) => [lesson.dossierId, `${lesson.dossier.firstName} ${lesson.dossier.lastName}`])).entries()).sort((a, b) => a[1].localeCompare(b[1], "nl"));
-  const visible = lessons.filter((lesson) => (instructorFilter === "all" || lesson.instructorId === instructorFilter) && (dossierFilter === "all" || lesson.dossierId === dossierFilter));
+  const displayedTheoryDays = theoryDays.filter((day) => {
+    if (instructorFilter !== "all") return false;
+    if (dossierFilter === "all") return true;
+    return lessons.some((lesson) => lesson.dossierId === dossierFilter && sameSlot(lesson, day));
+  });
+  const visible = lessons.filter((lesson) => {
+    if (instructorFilter !== "all" && lesson.instructorId !== instructorFilter) return false;
+    if (dossierFilter !== "all" && lesson.dossierId !== dossierFilter) return false;
+    return !displayedTheoryDays.some((day) => sameSlot(lesson, day));
+  });
   const { year, month } = brusselsYmd(cursor);
   const gridStart = startOfBrusselsWeek(cursor);
   const days = Array.from({ length: 42 }, (_, index) => addBrusselsDays(gridStart, index));
@@ -155,13 +178,14 @@ export function AgendaView({
     byDay.set(key, list);
   }
   const dayLessons = selectedDay ? byDay.get(selectedDay) ?? [] : [];
+  const selectedTheory = selectedDay ? displayedTheoryDays.filter((day) => brusselsDateKey(new Date(day.startAt)) === selectedDay) : [];
 
   return (
     <div>
       <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
         <div>
           <h1 className="text-2xl font-extrabold text-[#111827]">Agenda</h1>
-          <p className="mt-1 text-sm text-[#58595b]">Maandoverzicht van geplande lessen. Kies een dag om te verplaatsen of te annuleren.</p>
+          <p className="mt-1 text-sm text-[#58595b]">Maandoverzicht van lessen en theoriedagen. Kies een dag om te verplaatsen of te annuleren.</p>
         </div>
         <div className="flex flex-wrap gap-3">
           {isAdmin && instructors.length > 0 && (
@@ -197,6 +221,7 @@ export function AgendaView({
             <p className="mt-1 flex justify-center gap-2 text-[10px] font-semibold">
               <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-emerald-950">Bevestigd</span>
               <span className="rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-amber-950">Gepland</span>
+              {isAdmin && <span className={`rounded-full border px-2 py-0.5 ${THEORY_CHIP}`}>Theorie</span>}
             </p>
           </div>
           <button type="button" className="rounded-[10px] border border-black/10 px-3 py-2 text-sm font-semibold" onClick={() => setCursor(shiftMonth(cursor, 1))}>Volgende →</button>
@@ -209,6 +234,7 @@ export function AgendaView({
             const key = brusselsDateKey(day);
             const inMonth = brusselsYmd(day).month === month && brusselsYmd(day).year === year;
             const items = byDay.get(key) ?? [];
+            const dayTheory = displayedTheoryDays.filter((day) => brusselsDateKey(new Date(day.startAt)) === key);
             const selected = key === selectedDay;
             return (
               <button
@@ -221,12 +247,15 @@ export function AgendaView({
                   {brusselsYmd(day).day}
                 </span>
                 <span className="block space-y-1">
-                  {items.slice(0, 2).map((lesson) => (
-                    <span key={lesson.id} className={`block truncate rounded border px-1 py-0.5 text-[10px] font-semibold ${LESSON_CHIP[lesson.status] ?? "border-black/10 bg-[#f9f9f9] text-[#111827]"}`}>
-                      {TIME.format(new Date(lesson.startAt))} {lesson.dossier.firstName}
+                  {[
+                    ...dayTheory.map((day) => ({ key: day.id, label: `${TIME.format(new Date(day.startAt))} Theorie`, chip: THEORY_CHIP })),
+                    ...items.map((lesson) => ({ key: lesson.id, label: `${TIME.format(new Date(lesson.startAt))} ${lesson.dossier.firstName}`, chip: LESSON_CHIP[lesson.status] ?? "border-black/10 bg-[#f9f9f9] text-[#111827]" })),
+                  ].slice(0, 2).map((item) => (
+                    <span key={item.key} className={`block truncate rounded border px-1 py-0.5 text-[10px] font-semibold ${item.chip}`}>
+                      {item.label}
                     </span>
                   ))}
-                  {items.length > 2 && <span className="block text-[10px] font-semibold text-[#58595b]">+{items.length - 2}</span>}
+                  {dayTheory.length + items.length > 2 && <span className="block text-[10px] font-semibold text-[#58595b]">+{dayTheory.length + items.length - 2}</span>}
                 </span>
               </button>
             );
@@ -235,29 +264,35 @@ export function AgendaView({
       </div>
       <div className="mt-4 rounded-[10px] border border-black/10 bg-white p-4 shadow-sm">
         <h2 className="text-sm font-extrabold text-[#111827]">{selectedDay ? new Date(`${selectedDay}T12:00:00`).toLocaleDateString("nl-BE", { weekday: "long", day: "numeric", month: "long" }) : "Kies een dag"}</h2>
-        {dayLessons.length === 0 ? (
+        {selectedTheory.length === 0 && dayLessons.length === 0 ? (
           <p className="mt-3 text-sm text-[#58595b]">Geen lessen op deze dag.</p>
         ) : (
-          <ul className="mt-3 divide-y divide-black/5">
-            {dayLessons.map((lesson) => (
-              <li key={lesson.id} className="flex flex-wrap items-center justify-between gap-3 py-3 text-sm">
-                <div>
-                  <p className="font-semibold text-[#111827]">{formatSlot(lesson.startAt, lesson.endAt)} · {lesson.dossier.firstName} {lesson.dossier.lastName}</p>
-                  <p className="text-[#58595b]">{lesson.instructor.name}</p>
-                  {notices[lesson.id] && <p className="text-xs text-[#58595b]">{notices[lesson.id]}</p>}
-                </div>
-                <div className="flex items-center gap-2">
-                  <StatusBadge status={lesson.status} />
-                  {lesson.canChange && (
-                    <>
-                      <button type="button" onClick={() => setMoving(lesson)} className="rounded-[10px] border border-black/10 px-3 py-1.5 text-xs font-semibold">Verplaatsen</button>
-                      <button type="button" disabled={pendingId === lesson.id} onClick={() => handleCancel(lesson.id)} className="rounded-[10px] border border-black/10 px-3 py-1.5 text-xs font-semibold text-[#ed1c24] disabled:opacity-50">Annuleren</button>
-                    </>
+          <div className="mt-3 divide-y divide-black/5">
+            {selectedTheory.map((day) => {
+              const students = lessons.filter((lesson) => sameSlot(lesson, day) && (dossierFilter === "all" || lesson.dossierId === dossierFilter));
+              const enrolled = students.filter((lesson) => lesson.status !== "CANCELLED");
+              return (
+                <div key={day.id} className="py-3">
+                  <p className="font-semibold text-[#111827]">Theoriedag · {formatSlot(day.startAt, day.endAt)}</p>
+                  <p className="text-sm text-[#58595b]">{enrolled.length === 0 ? "Nog geen inschrijvingen" : `${enrolled.length} inschrijving${enrolled.length === 1 ? "" : "en"}`}</p>
+                  {students.length > 0 && (
+                    <ul className="mt-2 divide-y divide-black/5 rounded-[10px] border border-black/5">
+                      {students.map((lesson) => (
+                        <LessonRow key={lesson.id} lesson={lesson} notice={notices[lesson.id]} pending={pendingId === lesson.id} onMove={() => setMoving(lesson)} onCancel={() => handleCancel(lesson.id)} />
+                      ))}
+                    </ul>
                   )}
                 </div>
-              </li>
-            ))}
-          </ul>
+              );
+            })}
+            {dayLessons.length > 0 && (
+              <ul className="divide-y divide-black/5">
+                {dayLessons.map((lesson) => (
+                  <LessonRow key={lesson.id} lesson={lesson} notice={notices[lesson.id]} pending={pendingId === lesson.id} onMove={() => setMoving(lesson)} onCancel={() => handleCancel(lesson.id)} />
+                ))}
+              </ul>
+            )}
+          </div>
         )}
       </div>
       {moving && (
@@ -272,6 +307,39 @@ export function AgendaView({
         />
       )}
     </div>
+  );
+}
+
+function LessonRow({
+  lesson,
+  notice,
+  pending,
+  onMove,
+  onCancel,
+}: {
+  lesson: AgendaLesson;
+  notice?: string;
+  pending: boolean;
+  onMove: () => void;
+  onCancel: () => void;
+}) {
+  return (
+    <li className="flex flex-wrap items-center justify-between gap-3 px-3 py-3 text-sm">
+      <div>
+        <p className="font-semibold text-[#111827]">{lesson.dossier.firstName} {lesson.dossier.lastName}</p>
+        <p className="text-[#58595b]">{formatSlot(lesson.startAt, lesson.endAt)}{lesson.instructor.name === THEORY_LABEL ? "" : ` · ${lesson.instructor.name}`}</p>
+        {notice && <p className="text-xs text-[#58595b]">{notice}</p>}
+      </div>
+      <div className="flex items-center gap-2">
+        <StatusBadge status={lesson.status} />
+        {lesson.canChange && (
+          <>
+            <button type="button" onClick={onMove} className="rounded-[10px] border border-black/10 px-3 py-1.5 text-xs font-semibold">Verplaatsen</button>
+            <button type="button" disabled={pending} onClick={onCancel} className="rounded-[10px] border border-black/10 px-3 py-1.5 text-xs font-semibold text-[#ed1c24] disabled:opacity-50">Annuleren</button>
+          </>
+        )}
+      </div>
+    </li>
   );
 }
 

@@ -1,7 +1,7 @@
 import { Prisma } from "@prisma/client";
 import { auth } from "@/lib/auth";
 import { canCancelWithRefund } from "@/lib/cancellation";
-import { LESSON_BLOCK_MINUTES } from "@/lib/constants";
+import { hoursBetween, isTheoryPackage, lessonInstructorName, persistedInstructorId } from "@/lib/lessonBlocks";
 import { formatLessonMoment } from "@/lib/email";
 import { notifyStaffOfLessons } from "@/lib/notifications";
 import { prisma } from "@/lib/prisma";
@@ -21,7 +21,8 @@ async function requireStaff(): Promise<Failure | { ok: true; user: { role?: stri
   return { ok: true, user };
 }
 
-function ownsLesson(user: { role?: string; instructorId?: string }, instructorId: string) {
+function ownsLesson(user: { role?: string; instructorId?: string }, instructorId: string | null) {
+  if (!instructorId) return user.role === "ADMIN";
   return user.role === "ADMIN" || user.instructorId === instructorId;
 }
 
@@ -49,12 +50,11 @@ export async function cancelLesson(id: string) {
     return { ok: false as const, status: 409, error: TOO_LATE };
   }
 
-  const blockHours = LESSON_BLOCK_MINUTES / 60;
   await prisma.$transaction(async (tx) => {
     await tx.lesson.update({ where: { id: lesson.id }, data: { status: "CANCELLED" } });
     await tx.dossier.update({
       where: { id: lesson.dossierId },
-      data: { hoursRemaining: { increment: blockHours } },
+      data: { hoursRemaining: { increment: hoursBetween(lesson.startAt, lesson.endAt) } },
     });
   });
 
@@ -62,7 +62,7 @@ export async function cancelLesson(id: string) {
   await notifyStaffOfLessons({
     title: "Les geannuleerd",
     intro: `${studentName}: ${formatLessonMoment(lesson.startAt, lesson.endAt)} is geannuleerd.`,
-    lessons: [{ startAt: lesson.startAt, endAt: lesson.endAt, instructorName: lesson.instructor.name, instructorId: lesson.instructorId, studentName }],
+    lessons: [{ startAt: lesson.startAt, endAt: lesson.endAt, instructorName: lessonInstructorName(lesson.instructor), instructorId: lesson.instructorId, studentName }],
   });
 
   return { ok: true as const, status: "CANCELLED" as const, refundEligible: true };
@@ -72,7 +72,7 @@ export async function rescheduleLesson(id: string, startAt: string, endAt: strin
   const access = await requireStaff();
   if (!access.ok) return access;
 
-  const lesson = await prisma.lesson.findUnique({ where: { id }, include: { dossier: true, instructor: true } });
+  const lesson = await prisma.lesson.findUnique({ where: { id }, include: { dossier: true, instructor: true, package: true } });
   if (!lesson) return { ok: false as const, status: 404, error: "Les niet gevonden." };
   if (!ownsLesson(access.user, lesson.instructorId)) {
     return { ok: false as const, status: 403, error: "Je kan alleen je eigen lessen aanpassen." };
@@ -86,25 +86,28 @@ export async function rescheduleLesson(id: string, startAt: string, endAt: strin
 
   const nextStart = new Date(startAt);
   const nextEnd = new Date(endAt);
+  const theory = isTheoryPackage(lesson.package);
   const validationError = await validateRequestedSlot({
     instructorId,
     transmission: lesson.dossier.transmission,
     startAt: nextStart,
     endAt: nextEnd,
+    durationMinutes: (lesson.endAt.getTime() - lesson.startAt.getTime()) / 60_000,
+    theory,
   });
   if (validationError) return { ok: false as const, status: validationError.status, error: validationError.message };
 
   try {
     const updated = await prisma.lesson.update({
       where: { id: lesson.id },
-      data: { startAt: nextStart, endAt: nextEnd, instructorId },
+      data: { startAt: nextStart, endAt: nextEnd, instructorId: persistedInstructorId(lesson.package, instructorId) },
       include: { instructor: true },
     });
     const studentName = `${lesson.dossier.firstName} ${lesson.dossier.lastName}`;
     await notifyStaffOfLessons({
       title: "Les verplaatst",
       intro: `${studentName} is verplaatst van ${formatLessonMoment(lesson.startAt, lesson.endAt)} naar ${formatLessonMoment(nextStart, nextEnd)}.`,
-      lessons: [{ startAt: nextStart, endAt: nextEnd, instructorName: updated.instructor.name, instructorId, studentName }],
+      lessons: [{ startAt: nextStart, endAt: nextEnd, instructorName: lessonInstructorName(updated.instructor), instructorId: updated.instructorId, studentName }],
     });
     return { ok: true as const, lesson: updated };
   } catch (error) {

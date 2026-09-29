@@ -2,8 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { Prisma, type Transmission } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { computeAvailableSlots } from "@/lib/availability";
-import { LESSON_BLOCK_MINUTES } from "@/lib/constants";
 import { isTooSoonToPlan } from "@/lib/brusselsWeek";
+import { blockMinutesForPackage, isTheoryPackage, THEORY_INSTRUCTOR_ID, THEORY_LABEL } from "@/lib/lessonBlocks";
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
@@ -26,6 +26,24 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Pakket niet gevonden." }, { status: 404 });
   }
 
+  const rangeStart = new Date(from);
+  const rangeEnd = new Date(to);
+  if (isTheoryPackage(pkg)) {
+    const days = await prisma.theoryDay.findMany({
+      where: { startAt: { gte: rangeStart, lt: rangeEnd } },
+      orderBy: { startAt: "asc" },
+    });
+    return NextResponse.json([
+      {
+        instructorId: THEORY_INSTRUCTOR_ID,
+        instructorName: THEORY_LABEL,
+        slots: days
+          .filter((day) => !isTooSoonToPlan(day.startAt))
+          .map((day) => ({ startAt: day.startAt, endAt: day.endAt })),
+      },
+    ]);
+  }
+
   const instructorWhere: Prisma.InstructorWhereInput = { active: true };
   if (instructorId) instructorWhere.id = instructorId;
   if (transmissionParam) {
@@ -40,8 +58,6 @@ export async function GET(request: NextRequest) {
     include: { availabilityRules: true, availabilityExceptions: true },
   });
 
-  const rangeStart = new Date(from);
-  const rangeEnd = new Date(to);
   const weekdayFilter = weekdayParam ? weekdayParam.split(",").map(Number) : undefined;
 
   const bookedLessons = await prisma.lesson.findMany({
@@ -53,6 +69,7 @@ export async function GET(request: NextRequest) {
     },
   });
 
+  const durationMinutes = blockMinutesForPackage(pkg);
   const result = instructors.map((instructor) => ({
     instructorId: instructor.id,
     instructorName: instructor.name,
@@ -69,7 +86,7 @@ export async function GET(request: NextRequest) {
         .map((l) => ({ startAt: l.startAt, endAt: l.endAt })),
       rangeStart,
       rangeEnd,
-      lessonDurationMinutes: LESSON_BLOCK_MINUTES,
+      lessonDurationMinutes: durationMinutes,
       weekdayFilter,
     }).filter((slot) => !isTooSoonToPlan(slot.startAt)),
   }));

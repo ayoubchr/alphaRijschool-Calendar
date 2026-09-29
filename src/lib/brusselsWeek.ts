@@ -29,6 +29,17 @@ function brusselsOffsetMinutes(instant: Date): number {
   return Math.round((asUtc - instant.getTime()) / 60000);
 }
 
+/** A Brussels wall-clock date and time, as a UTC instant. `time` is `HH:mm`. */
+export function brusselsDateAndTime(dateKey: string, time: string): Date {
+  const [year, month, day] = dateKey.split("-").map(Number);
+  const [hour, minute] = time.split(":").map(Number);
+  const guess = new Date(Date.UTC(year, month - 1, day, hour, minute, 0));
+  const offset1 = brusselsOffsetMinutes(guess);
+  const utcMillis1 = guess.getTime() - offset1 * 60000;
+  const offset2 = brusselsOffsetMinutes(new Date(utcMillis1));
+  return new Date(offset2 === offset1 ? utcMillis1 : guess.getTime() - offset2 * 60000);
+}
+
 /** Midnight at the start of a Brussels calendar day, as a UTC instant. */
 export function brusselsMidnight(year: number, month: number, day: number): Date {
   const guess = new Date(Date.UTC(year, month - 1, day, 0, 0, 0));

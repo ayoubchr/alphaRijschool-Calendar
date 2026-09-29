@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { IoClose } from "react-icons/io5";
 import { addBrusselsDays, brusselsDateKey, brusselsYmd, isTooSoonToPlan, startOfBrusselsWeek } from "@/lib/brusselsWeek";
+import { blockHoursForPackage, isTheoryPackage } from "@/lib/lessonBlocks";
 import { cancelOwnLesson, moveOwnLesson, planLessons } from "./actions";
 import type { StudentDossier, StudentLesson } from "./MijnLessenView";
 
@@ -122,7 +123,9 @@ export function PackageCalendar({ dossier, actions, onUpdated }: { dossier: Stud
     group.push(slot);
     openByTime.set(slot.startAt, group);
   }
-  const creditLeft = Math.floor(dossier.hoursRemaining / 2) - reservedAdds.length;
+  const theory = isTheoryPackage({ name: dossier.packageName });
+  const blockHours = blockHoursForPackage({ name: dossier.packageName });
+  const creditLeft = Math.floor(dossier.hoursRemaining / blockHours) - reservedAdds.length;
   const dirty = moves.length > 0 || reservedAdds.length > 0;
   const days = Array.from({ length: 7 }, (_, index) => addBrusselsDays(weekStart, index));
   const todayKey = brusselsDateKey(new Date());
@@ -220,8 +223,8 @@ export function PackageCalendar({ dossier, actions, onUpdated }: { dossier: Stud
           <p className="text-xs font-bold uppercase tracking-[0.14em] text-[#ed1c24]">Pakket</p>
           <h2 className="mt-1 text-xl font-extrabold text-[#111827]">{dossier.packageName}</h2>
           <p className="mt-1 text-sm text-[#58595b]">
-            {TRANSMISSION[dossier.transmission]} · nog {dossier.hoursRemaining} uur
-            {reservedAdds.length > 0 ? ` (${dossier.hoursRemaining - reservedAdds.length * 2} na opslaan)` : ""}
+            {theory ? "" : `${TRANSMISSION[dossier.transmission]} · `}nog {dossier.hoursRemaining} uur
+            {reservedAdds.length > 0 ? ` (${dossier.hoursRemaining - reservedAdds.length * blockHours} na opslaan)` : ""}
           </p>
         </div>
         <ul className="flex flex-wrap gap-2 text-xs font-semibold">
@@ -231,7 +234,7 @@ export function PackageCalendar({ dossier, actions, onUpdated }: { dossier: Stud
           <li className="rounded-full border border-[#ed1c24] bg-white px-2.5 py-1 text-[#ed1c24]">Nog opslaan</li>
         </ul>
       </div>
-      <p className="mt-3 text-sm text-[#58595b]">Klik een vrij moment en kies een instructeur, of sleep een les ernaartoe. Klik daarna op Opslaan.</p>
+      <p className="mt-3 text-sm text-[#58595b]">{theory ? "Kies een theoriedag van 6 uur, of sleep een les ernaartoe. Klik daarna op Opslaan." : "Klik een vrij moment en kies een instructeur, of sleep een les ernaartoe. Klik daarna op Opslaan."}</p>
       {error && <p className="mt-3 text-sm text-[#ed1c24]">{error}</p>}
 
       <div className="mt-4 overflow-hidden rounded-[10px] border border-black/10">
@@ -360,7 +363,7 @@ export function PackageCalendar({ dossier, actions, onUpdated }: { dossier: Stud
                         </li>
                       );
                     })}
-                    {cards.length === 0 && <li className="px-1 text-center text-[11px] text-[#58595b]">Geen momenten</li>}
+                    {cards.length === 0 && <li className="px-1 text-center text-[11px] text-[#58595b]">{theory ? "Geen theoriedag" : "Geen momenten"}</li>}
                   </ul>
                 </div>
               );
@@ -419,7 +422,9 @@ export function PackageCalendar({ dossier, actions, onUpdated }: { dossier: Stud
           <div role="dialog" aria-modal="true" aria-labelledby="annuleer-titel" className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl" onClick={(event) => event.stopPropagation()}>
             <h3 id="annuleer-titel" className="text-lg font-extrabold text-[#111827]">Les annuleren?</h3>
             <p className="mt-2 text-sm leading-relaxed text-[#58595b]">
-              Wil je de les op {MOMENT.format(new Date(cancelTarget.startAt))} bij {cancelTarget.instructorName} annuleren? De 2 uur komen terug op je pakket.
+              {theory
+                ? `Wil je de theoriedag op ${MOMENT.format(new Date(cancelTarget.startAt))} annuleren? De ${blockHours} uur komen terug op je pakket.`
+                : `Wil je de les op ${MOMENT.format(new Date(cancelTarget.startAt))} bij ${cancelTarget.instructorName} annuleren? De ${blockHours} uur komen terug op je pakket.`}
             </p>
             <div className="mt-6 flex justify-end gap-2">
               <button type="button" className="rounded-full px-4 py-2 text-sm font-semibold text-[#111827]" onClick={() => setCancelTarget(null)} disabled={cancelling}>

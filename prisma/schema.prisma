@@ -82,6 +82,13 @@ model AvailabilityException {
   isAvailable  Boolean    @default(false)
 }
 
+model TheoryDay {
+  id        String   @id @default(cuid())
+  startAt   DateTime @unique
+  endAt     DateTime
+  createdAt DateTime @default(now())
+}
+
 model Dossier {
   id                     String    @id @default(cuid())
   email                  String
@@ -115,8 +122,8 @@ model Lesson {
   id           String       @id @default(cuid())
   dossierId    String
   dossier      Dossier      @relation(fields: [dossierId], references: [id])
-  instructorId String
-  instructor   Instructor   @relation(fields: [instructorId], references: [id])
+  instructorId String?
+  instructor   Instructor?  @relation(fields: [instructorId], references: [id])
   packageId    String
   package      Package      @relation(fields: [packageId], references: [id])
   startAt      DateTime

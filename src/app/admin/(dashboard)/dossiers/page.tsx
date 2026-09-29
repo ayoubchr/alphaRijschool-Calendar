@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { canCancelWithRefund } from "@/lib/cancellation";
+import { blockHoursForPackage, lessonInstructorName, THEORY_INSTRUCTOR_ID } from "@/lib/lessonBlocks";
 import { prisma } from "@/lib/prisma";
 import { DossiersView } from "./DossiersView";
 
@@ -29,8 +30,8 @@ export default async function DossiersPage() {
             startAt: lesson.startAt.toISOString(),
             endAt: lesson.endAt.toISOString(),
             status: lesson.status,
-            instructorId: lesson.instructorId,
-            instructorName: lesson.instructor.name,
+            instructorId: lesson.instructorId ?? THEORY_INSTRUCTOR_ID,
+            instructorName: lessonInstructorName(lesson.instructor),
             canChange: lesson.status !== "COMPLETED" && canCancelWithRefund(lesson.startAt),
           }));
         const hasUpcoming = lessons.some((lesson) => lesson.status !== "COMPLETED" && new Date(lesson.startAt).getTime() >= now);
@@ -47,7 +48,7 @@ export default async function DossiersPage() {
           transmission: TRANSMISSION[dossier.transmission],
           transmissionCode: dossier.transmission === "MANUEEL" ? "MANUEEL" as const : "AUTOMAAT" as const,
           lessonCount: lessons.length,
-          finished: dossier.hoursRemaining < 2 && !hasUpcoming,
+          finished: dossier.hoursRemaining < blockHoursForPackage(dossier.package) && !hasUpcoming,
           lessons,
         };
       })}

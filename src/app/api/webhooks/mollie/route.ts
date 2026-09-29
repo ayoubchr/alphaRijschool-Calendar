@@ -4,7 +4,7 @@ import { getPaymentStatus } from "@/lib/mollie";
 import { sendBookingConfirmationEmail } from "@/lib/email";
 import { notifyStaffOfLessons } from "@/lib/notifications";
 import { ensureAuthUser, magicLinkFor } from "@/lib/supabase/accounts";
-import { LESSON_BLOCK_MINUTES } from "@/lib/constants";
+import { hoursBetween, lessonInstructorName } from "@/lib/lessonBlocks";
 
 export async function POST(request: NextRequest) {
   const formData = await request.formData();
@@ -22,7 +22,6 @@ export async function POST(request: NextRequest) {
   }
 
   const { status } = await getPaymentStatus(paymentId);
-  const blockHours = LESSON_BLOCK_MINUTES / 60;
 
   if (status === "paid") {
     // Atomically claim this payment for processing. A plain findUnique-then-check (the previous
@@ -41,7 +40,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ received: true });
     }
 
-    const decrementHours = payment.dossier.lessons.length * blockHours;
+    const decrementHours = payment.dossier.lessons
+      .filter((lesson) => lesson.status !== "CANCELLED")
+      .reduce((sum, lesson) => sum + hoursBetween(lesson.startAt, lesson.endAt), 0);
     // Defensive floor: never let hoursRemaining go negative. This matters for 0-hour packages
     // (e.g. "Praktijkexamen") whose confirmed lesson still consumes a block.
     const newHoursRemaining = Math.max(0, payment.dossier.hoursRemaining - decrementHours);
@@ -57,7 +58,7 @@ export async function POST(request: NextRequest) {
     const lessons = payment.dossier.lessons.map((lesson) => ({
       startAt: lesson.startAt,
       endAt: lesson.endAt,
-      instructorName: lesson.instructor.name,
+      instructorName: lessonInstructorName(lesson.instructor),
       instructorId: lesson.instructorId,
       studentName,
     }));

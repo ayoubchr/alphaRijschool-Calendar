@@ -1,6 +1,7 @@
 "use client";
 
 import { type FormEvent, useEffect, useState } from "react";
+import { blockHoursForPackage, isTheoryPackage } from "@/lib/lessonBlocks";
 import { deleteDossier, updateDossier } from "./actions";
 import { DossierPlanning } from "./DossierPlanning";
 
@@ -74,7 +75,7 @@ export function DossiersView({ dossiers: initial }: { dossiers: DossierRow[] }) 
       phone: String(form.get("phone") ?? "").trim(),
       address: String(form.get("address") ?? "").trim(),
       hoursRemaining,
-      finished: hoursRemaining < 2 && !hasUpcoming,
+      finished: hoursRemaining < blockHoursForPackage({ name: editing.packageName }) && !hasUpcoming,
     };
     setDossiers((current) => current.map((item) => (item.id === next.id ? next : item)));
     setEditing(null);
@@ -116,7 +117,7 @@ export function DossiersView({ dossiers: initial }: { dossiers: DossierRow[] }) 
               <li key={dossier.id} className="flex flex-wrap items-center justify-between gap-3 px-4 py-3">
                 <div>
                   <p className="font-semibold text-[#111827]">{dossier.firstName} {dossier.lastName}</p>
-                  <p className="text-sm text-[#58595b]">{dossier.packageName} · {dossier.transmission} · {dossier.hoursRemaining} uur over · {dossier.lessonCount} lessen</p>
+                  <p className="text-sm text-[#58595b]">{dossier.packageName}{isTheoryPackage({ name: dossier.packageName }) ? "" : ` · ${dossier.transmission}`} · {dossier.hoursRemaining} uur over · {dossier.lessonCount} lessen</p>
                   <p className="text-sm text-[#58595b]">{dossier.email} · {dossier.phone}</p>
                 </div>
                 <div className="flex gap-2">
@@ -137,7 +138,7 @@ export function DossiersView({ dossiers: initial }: { dossiers: DossierRow[] }) 
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" role="presentation" onClick={() => setEditing(null)}>
           <form onSubmit={save} className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-xl" onClick={(event) => event.stopPropagation()}>
             <h2 className="text-lg font-extrabold text-[#111827]">{editing.firstName} {editing.lastName}</h2>
-            <p className="mt-1 text-sm text-[#58595b]">{editing.packageName} · {editing.transmission}</p>
+            <p className="mt-1 text-sm text-[#58595b]">{editing.packageName}{isTheoryPackage({ name: editing.packageName }) ? "" : ` · ${editing.transmission}`}</p>
             <div className="mt-4 grid gap-3 sm:grid-cols-2">
               <label className="text-sm font-medium">Voornaam<input name="firstName" defaultValue={editing.firstName} required className="mt-1 w-full rounded-[10px] border border-black/10 px-3 py-2" /></label>
               <label className="text-sm font-medium">Achternaam<input name="lastName" defaultValue={editing.lastName} required className="mt-1 w-full rounded-[10px] border border-black/10 px-3 py-2" /></label>

@@ -1,7 +1,7 @@
 import { Prisma } from "@prisma/client";
 import { auth } from "@/lib/auth";
 import { canCancelWithRefund } from "@/lib/cancellation";
-import { LESSON_BLOCK_MINUTES } from "@/lib/constants";
+import { blockHoursForPackage, blockMinutesForPackage, hoursBetween, isTheoryPackage, lessonInstructorName, persistedInstructorId } from "@/lib/lessonBlocks";
 import { formatLessonMoment, sendLessonsChangedEmail } from "@/lib/email";
 import { notifyStaffOfLessons } from "@/lib/notifications";
 import { prisma } from "@/lib/prisma";
@@ -33,7 +33,8 @@ export async function bookStudentLessons(input: {
     return { ok: false as const, status: 400, error: "Ongeldige transmissie voor dit dossier." };
   }
 
-  const blockHours = LESSON_BLOCK_MINUTES / 60;
+  const blockHours = blockHoursForPackage(dossier.package);
+  const durationMinutes = blockMinutesForPackage(dossier.package);
   const maxSlots = Math.floor(dossier.hoursRemaining / blockHours);
   if (input.slots.length < 1 || input.slots.length > maxSlots) {
     return { ok: false as const, status: 400, error: `Je kan nog ${maxSlots} les${maxSlots === 1 ? "" : "sen"} inplannen.` };
@@ -45,6 +46,8 @@ export async function bookStudentLessons(input: {
       transmission: dossier.transmission,
       startAt: new Date(slot.startAt),
       endAt: new Date(slot.endAt),
+      durationMinutes,
+      theory: isTheoryPackage(dossier.package),
     });
     if (validationError) return { ok: false as const, status: validationError.status, error: validationError.message };
   }
@@ -62,7 +65,7 @@ export async function bookStudentLessons(input: {
           tx.lesson.create({
             data: {
               dossierId: dossier.id,
-              instructorId: slot.instructorId,
+              instructorId: persistedInstructorId(dossier.package, slot.instructorId),
               packageId: dossier.packageId,
               startAt: new Date(slot.startAt),
               endAt: new Date(slot.endAt),
@@ -80,7 +83,7 @@ export async function bookStudentLessons(input: {
       lessons: created.map((lesson) => ({
         startAt: lesson.startAt,
         endAt: lesson.endAt,
-        instructorName: lesson.instructor.name,
+        instructorName: lessonInstructorName(lesson.instructor),
         instructorId: lesson.instructorId,
         studentName,
       })),
@@ -110,7 +113,7 @@ export async function changeStudentLesson(input: {
   }
   const lesson = await prisma.lesson.findFirst({
     where: { id: input.lessonId, dossier: { email: session.user.email }, status: { in: ["PLANNED", "CONFIRMED"] } },
-    include: { dossier: true, instructor: true },
+    include: { dossier: { include: { package: true } }, instructor: true, package: true },
   });
   if (!lesson) return { ok: false as const, status: 404, error: "Les niet gevonden." };
   if (!canCancelWithRefund(lesson.startAt)) {
@@ -121,18 +124,18 @@ export async function changeStudentLesson(input: {
   if (input.action === "cancel") {
     await prisma.$transaction([
       prisma.lesson.update({ where: { id: lesson.id }, data: { status: "CANCELLED" } }),
-      prisma.dossier.update({ where: { id: lesson.dossierId }, data: { hoursRemaining: { increment: LESSON_BLOCK_MINUTES / 60 } } }),
+      prisma.dossier.update({ where: { id: lesson.dossierId }, data: { hoursRemaining: { increment: hoursBetween(lesson.startAt, lesson.endAt) } } }),
     ]);
     await notifyStaffOfLessons({
       title: "Les geannuleerd",
       intro: `${studentName} annuleerde ${formatLessonMoment(lesson.startAt, lesson.endAt)}.`,
-      lessons: [{ startAt: lesson.startAt, endAt: lesson.endAt, instructorName: lesson.instructor.name, instructorId: lesson.instructorId, studentName }],
+      lessons: [{ startAt: lesson.startAt, endAt: lesson.endAt, instructorName: lessonInstructorName(lesson.instructor), instructorId: lesson.instructorId, studentName }],
     });
     await sendLessonsChangedEmail({
       to: [session.user.email],
       title: "Les geannuleerd",
       intro: "Je les is geannuleerd. Het tegoed staat weer op je dossier.",
-      lessons: [{ startAt: lesson.startAt, endAt: lesson.endAt, instructorName: lesson.instructor.name, studentName }],
+      lessons: [{ startAt: lesson.startAt, endAt: lesson.endAt, instructorName: lessonInstructorName(lesson.instructor), studentName }],
     });
     return { ok: true as const };
   }
@@ -142,21 +145,24 @@ export async function changeStudentLesson(input: {
   }
   const nextStart = new Date(input.startAt);
   const nextEnd = new Date(input.endAt);
+  const theory = isTheoryPackage(lesson.package);
   const validationError = await validateRequestedSlot({
     instructorId: input.instructorId,
     transmission: lesson.dossier.transmission,
     startAt: nextStart,
     endAt: nextEnd,
+    durationMinutes: (lesson.endAt.getTime() - lesson.startAt.getTime()) / 60_000,
+    theory,
   });
   if (validationError) return { ok: false as const, status: validationError.status, error: validationError.message };
 
   try {
     const updated = await prisma.lesson.update({
     where: { id: lesson.id },
-    data: { startAt: nextStart, endAt: nextEnd, instructorId: input.instructorId },
+    data: { startAt: nextStart, endAt: nextEnd, instructorId: persistedInstructorId(lesson.package, input.instructorId) },
     include: { instructor: true },
   });
-  const moved = [{ startAt: nextStart, endAt: nextEnd, instructorName: updated.instructor.name, instructorId: input.instructorId, studentName }];
+  const moved = [{ startAt: nextStart, endAt: nextEnd, instructorName: lessonInstructorName(updated.instructor), instructorId: updated.instructorId, studentName }];
   await notifyStaffOfLessons({
     title: "Les verplaatst",
     intro: `${studentName} verplaatste een les naar ${formatLessonMoment(nextStart, nextEnd)}.`,

@@ -1,8 +1,7 @@
 import { Prisma } from "@prisma/client";
 import { auth } from "@/lib/auth";
-import { sendLoginLinkEmail } from "@/lib/email";
 import { prisma } from "@/lib/prisma";
-import { ensureAuthUser, magicLinkFor } from "@/lib/supabase/accounts";
+import { inviteInstructor } from "@/lib/supabase/accounts";
 import {
   availabilityExceptionSchema,
   availabilityRuleSchema,
@@ -71,9 +70,7 @@ export async function createInstructor(input: unknown) {
     data: { name: parsed.data.name, email: parsed.data.email.toLowerCase(), transmission: parsed.data.transmission, active: true },
   });
   try {
-    await ensureAuthUser({ email: instructor.email!, role: "INSTRUCTOR", instructorId: instructor.id });
-    const magicLinkUrl = await magicLinkFor(instructor.email!, "/admin/agenda");
-    await sendLoginLinkEmail({ to: instructor.email!, name: instructor.name, magicLinkUrl });
+    await inviteInstructor({ email: instructor.email!, name: instructor.name, instructorId: instructor.id });
   } catch (error) {
     await prisma.instructor.delete({ where: { id: instructor.id } });
     const message = error instanceof Error ? error.message : "Account aanmaken mislukt.";

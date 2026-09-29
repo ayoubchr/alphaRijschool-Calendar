@@ -7,7 +7,8 @@ import { createDepositPayment } from "@/lib/mollie";
 import { encryptField } from "@/lib/encryption";
 import { validateRequestedSlot } from "@/lib/slotValidation";
 import { normalizeRijksregisternummer } from "@/lib/rijksregisternummer";
-import { LESSON_BLOCK_MINUTES } from "@/lib/constants";
+import { brusselsDateKey } from "@/lib/brusselsWeek";
+import { blockMinutesForPackage, isTheoryPackage, persistedInstructorId, THEORY_DAY_COUNT } from "@/lib/lessonBlocks";
 import { bookingRequestSchema } from "@/lib/validations/booking";
 
 export async function POST(request: NextRequest) {
@@ -24,7 +25,15 @@ export async function POST(request: NextRequest) {
 
   // The total requested hours must fit within the chosen package's hours — otherwise a caller
   // could request more lesson blocks than the package they're paying for actually includes.
-  const requestedHours = slots.length * (LESSON_BLOCK_MINUTES / 60);
+  const theory = isTheoryPackage(pkg);
+  const blockMinutes = blockMinutesForPackage(pkg);
+  if (theory && slots.length !== THEORY_DAY_COUNT) {
+    return NextResponse.json({ error: "Theorie bestaat uit 2 dagen van 6 uur." }, { status: 400 });
+  }
+  if (theory && new Set(slots.map((slot) => brusselsDateKey(new Date(slot.startAt)))).size !== slots.length) {
+    return NextResponse.json({ error: "Kies twee verschillende dagen." }, { status: 400 });
+  }
+  const requestedHours = slots.length * (blockMinutes / 60);
   if (requestedHours > pkg.hours) {
     return NextResponse.json(
       { error: "Het aantal gevraagde lesuren overschrijdt het gekozen pakket." },
@@ -44,6 +53,8 @@ export async function POST(request: NextRequest) {
       transmission,
       startAt: new Date(slot.startAt),
       endAt: new Date(slot.endAt),
+      durationMinutes: blockMinutes,
+      theory,
     });
     if (validationError) {
       return NextResponse.json({ error: validationError.message }, { status: validationError.status });
@@ -78,7 +89,7 @@ export async function POST(request: NextRequest) {
         const lesson = await tx.lesson.create({
           data: {
             dossierId: dossier.id,
-            instructorId: slot.instructorId,
+            instructorId: persistedInstructorId(pkg, slot.instructorId),
             packageId: pkg.id,
             startAt: new Date(slot.startAt),
             endAt: new Date(slot.endAt),
