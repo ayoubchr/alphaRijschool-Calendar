@@ -1,7 +1,13 @@
-import { LESSON_BLOCK_MINUTES } from "@/lib/constants";
-import { blockHoursForPackage } from "@/lib/lessonBlocks";
+import { isTheoryPackage } from "@/lib/lessonBlocks";
+import { formatEuro } from "@/lib/money";
 
 export type Transmission = "AUTOMAAT" | "MANUEEL";
+
+/** First driving lesson, the same for every package. Automaat €160, schakel €150. */
+const FIRST_LESSON_CENTS: Record<Transmission, number> = {
+  AUTOMAAT: 16000,
+  MANUEEL: 15000,
+};
 
 export interface PackageLike {
   name?: string;
@@ -24,27 +30,33 @@ export interface DepositBreakdown {
   lessonAmount: number;
   registrationFee: number;
   total: number;
+  /** Theory is paid in full now. Driving pays only the first lesson. */
+  paysInFull: boolean;
 }
 
 /**
- * What the student pays now: the first lesson block, plus the registration fee.
- * Driving blocks are 2 hours. Theory is a 6-hour day. A practical exam has no
- * lesson hours, so that part is half the package price.
+ * What the student pays now, and what bookkeeping should see on the payment.
+ * Every driving package: first lesson €160 (automaat) or €150 (schakel), plus
+ * the registration fee. Theory is the full package price plus that fee.
  */
 export function depositBreakdown(pkg: PackageLike, transmission: Transmission): DepositBreakdown {
   const base = transmissionPrice(pkg, transmission);
-  const blockHours = pkg.name ? blockHoursForPackage({ name: pkg.name }) : LESSON_BLOCK_MINUTES / 60;
-  const theory = pkg.name?.toLowerCase().includes("theorie") ?? false;
-  const lessonAmount =
-    pkg.hours > 0
-      ? Math.round((base / pkg.hours) * Math.min(blockHours, pkg.hours))
-      : Math.round(base / 2);
+  const theory = pkg.name ? isTheoryPackage({ name: pkg.name }) : false;
+  const lessonAmount = theory ? base : Math.min(FIRST_LESSON_CENTS[transmission], base);
   return {
-    lessonLabel: pkg.hours === 0 ? "Praktijkexamen" : theory ? "Eerste theoriedag" : "Eerste les",
+    lessonLabel: theory ? "Theorielessen" : "Eerste les",
     lessonAmount,
     registrationFee: pkg.registrationFee,
     total: lessonAmount + pkg.registrationFee,
+    paysInFull: theory || lessonAmount >= base,
   };
+}
+
+/** Mollie description: the same split the student sees, so the books match. */
+export function paymentDescription(pkg: PackageLike, transmission: Transmission): string {
+  const payment = depositBreakdown(pkg, transmission);
+  const name = pkg.name ? ` (${pkg.name})` : "";
+  return `${payment.lessonLabel} ${formatEuro(payment.lessonAmount)} + inschrijving ${formatEuro(payment.registrationFee)}${name}`;
 }
 
 export function depositAmount(pkg: PackageLike, transmission: Transmission): number {

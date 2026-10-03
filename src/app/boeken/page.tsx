@@ -51,7 +51,7 @@ function BookingWizard() {
           <p className="text-sm font-semibold uppercase tracking-[0.16em] text-brand-red">Online inschrijven</p>
           <h1 className="mt-2 text-3xl font-extrabold text-brand-navy md:text-4xl">Boek je les</h1>
           <p className="mt-2 max-w-xl text-brand-gray">
-            Kies een pakket en je lesmomenten. Je betaalt nu de eerste les en de inschrijvingskosten.
+            Kies een pakket en je lesmomenten. Bij een rijles betaal je nu de eerste les en de inschrijvingskosten. Theorielessen betaal je meteen volledig.
           </p>
         </div>
         <Image

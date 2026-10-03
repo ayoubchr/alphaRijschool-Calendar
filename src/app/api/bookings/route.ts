@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getPackageById } from "@/lib/packages";
-import { depositAmount } from "@/lib/pricing";
+import { depositBreakdown, paymentDescription } from "@/lib/pricing";
 import { createDepositPayment } from "@/lib/mollie";
 import { encryptField } from "@/lib/encryption";
 import { validateRequestedSlot } from "@/lib/slotValidation";
@@ -61,7 +61,7 @@ export async function POST(request: NextRequest) {
     }
   }
 
-  const amount = depositAmount(pkg, transmission);
+  const amount = depositBreakdown(pkg, transmission).total;
 
   let dossierId: string;
   let createdLessonIds: string[];
@@ -123,7 +123,7 @@ export async function POST(request: NextRequest) {
   try {
     const payment = await createDepositPayment({
       amountCents: amount,
-      description: `Eerste les + inschrijving ${pkg.name}`,
+      description: paymentDescription(pkg, transmission),
       redirectUrl: `${process.env.APP_URL}/boeken/bevestiging?dossier=${dossierId}`,
       webhookUrl: `${process.env.APP_URL}/api/webhooks/mollie`,
       metadata: { dossierId },

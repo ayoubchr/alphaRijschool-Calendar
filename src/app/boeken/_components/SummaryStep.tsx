@@ -40,12 +40,11 @@ export function SummaryStep({ selectedPackage, transmission, slots, details, onB
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const paymentNote =
-    payment.lessonLabel === "Eerste theoriedag"
-      ? "Je betaalt nu de eerste theoriedag en de inschrijving."
-      : payment.lessonLabel === "Eerste les"
-        ? "Je betaalt nu de eerste les en de inschrijving. De rest volgt later."
-        : "Je betaalt nu het praktijkexamen en de inschrijving.";
+  const paymentNote = payment.paysInFull
+    ? theory
+      ? "Je betaalt nu de theorielessen en de inschrijving."
+      : "Je betaalt nu de les en de inschrijving."
+    : "Je betaalt nu de eerste les en de inschrijving. De rest volgt later.";
 
   async function handleConfirm() {
     setSubmitting(true);
