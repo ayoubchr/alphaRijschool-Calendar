@@ -1,6 +1,6 @@
 export const PHONE = "+32 486 29 53 75";
 export const PHONE_HREF = "tel:+32486295375";
-export const EMAIL = "rijschoolalpha@hotmail.com";
+export const EMAIL = "rijschoolalpha@gmail.com";
 //export const EMAIL = "ziani_nabil@outlook.com"; // temporary for testing
 
 export const ADDRESS = "Turnhoutsebaan 76B, 2100 Antwerpen";
@@ -19,6 +19,6 @@ export const NAV_LINKS = [
 export const SOCIALS = [
   { href: WHATSAPP_HREF, label: "WhatsApp", icon: "whatsapp" },
   { href: "https://www.instagram.com/rijschoolalpha/", label: "Instagram", icon: "instagram" },
-  { href: "https://www.tiktok.com/@alpha.rijschool1", label: "TikTok", icon: "tiktok" },
+  { href: "https://www.tiktok.com/@alpha.rijschool", label: "TikTok", icon: "tiktok" },
   { href: "https://www.facebook.com/alpharijschool.be", label: "Facebook", icon: "facebook" },
 ] as const;
