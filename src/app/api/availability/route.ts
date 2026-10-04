@@ -12,6 +12,7 @@ export async function GET(request: NextRequest) {
   const to = searchParams.get("to");
   const weekdayParam = searchParams.get("weekdays");
   const instructorId = searchParams.get("instructorId") ?? undefined;
+  const exceptLessonId = searchParams.get("exceptLessonId") ?? undefined;
   const transmissionParam = searchParams.get("transmission") ?? undefined;
 
   if (!packageId || !from || !to) {
@@ -66,6 +67,7 @@ export async function GET(request: NextRequest) {
       endAt: { lte: rangeEnd },
       status: { in: ["PLANNED", "CONFIRMED"] },
       ...(instructorId ? { instructorId } : {}),
+      ...(exceptLessonId ? { id: { not: exceptLessonId } } : {}),
     },
   });
 

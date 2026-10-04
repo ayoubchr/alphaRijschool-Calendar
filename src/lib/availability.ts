@@ -21,7 +21,8 @@ export interface Slot {
   endAt: Date;
 }
 
-const GRID_STARTS = new Set(["08:00", "10:00", "12:00", "14:00", "16:00", "18:00"]);
+/** Lesson start times inside an open stretch, so a lesson can begin at 09:15. */
+const SLOT_STEP_MINUTES = 15;
 
 const BRUSSELS_TZ = "Europe/Brussels";
 
@@ -161,15 +162,14 @@ export function computeAvailableSlots(params: {
     for (const window of windows) {
       const windowStartMin = parseTimeToMinutes(window.start);
       const windowEndMin = parseTimeToMinutes(window.end);
-
+      // Each saved block is one lesson start (08:15–10:15 stays 08:15). A longer
+      // block still steps per lesson, not per quarter, so neighbours are not invented.
       for (
         let slotStartMin = windowStartMin;
         slotStartMin + lessonDurationMinutes <= windowEndMin;
         slotStartMin += lessonDurationMinutes
       ) {
-        const startLabel = `${String(Math.floor(slotStartMin / 60)).padStart(2, "0")}:${String(slotStartMin % 60).padStart(2, "0")}`;
-        if (!GRID_STARTS.has(startLabel)) continue;
-
+        if (slotStartMin % SLOT_STEP_MINUTES !== 0) continue;
         const slotStart = brusselsWallTimeToUtc(year, month, day, slotStartMin);
         const slotEnd = brusselsWallTimeToUtc(year, month, day, slotStartMin + lessonDurationMinutes);
         if (slotStart < rangeStart || slotEnd > rangeEnd) continue;

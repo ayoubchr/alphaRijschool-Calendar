@@ -26,8 +26,10 @@ export async function validateRequestedSlot(params: {
   endAt: Date;
   durationMinutes: number;
   theory?: boolean;
+  /** The lesson being moved. Its current time must not block the new start. */
+  ignoreLessonId?: string;
 }): Promise<SlotValidationError | null> {
-  const { instructorId, transmission, startAt, endAt, durationMinutes, theory } = params;
+  const { instructorId, transmission, startAt, endAt, durationMinutes, theory, ignoreLessonId } = params;
 
   if (theory) return validateTheorySlot(startAt, endAt);
 
@@ -60,6 +62,7 @@ export async function validateRequestedSlot(params: {
       status: { in: ["PLANNED", "CONFIRMED"] },
       startAt: { gte: rangeStart },
       endAt: { lte: rangeEnd },
+      ...(ignoreLessonId ? { id: { not: ignoreLessonId } } : {}),
     },
   });
 

@@ -153,6 +153,7 @@ export async function changeStudentLesson(input: {
     endAt: nextEnd,
     durationMinutes: (lesson.endAt.getTime() - lesson.startAt.getTime()) / 60_000,
     theory,
+    ignoreLessonId: lesson.id,
   });
   if (validationError) return { ok: false as const, status: validationError.status, error: validationError.message };
 

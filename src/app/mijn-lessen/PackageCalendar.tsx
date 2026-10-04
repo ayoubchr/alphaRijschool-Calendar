@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { IoClose } from "react-icons/io5";
+import { intervalsOverlap } from "@/components/StartTimeChips";
+import { WeekTimeline, type TimelineBlock, type TimelineFree } from "@/components/WeekTimeline";
 import { addBrusselsDays, brusselsDateKey, brusselsYmd, isTooSoonToPlan, startOfBrusselsWeek } from "@/lib/brusselsWeek";
 import { blockHoursForPackage, isTheoryPackage } from "@/lib/lessonBlocks";
 import { cancelOwnLesson, moveOwnLesson, planLessons } from "./actions";
@@ -18,8 +19,6 @@ type FreeSlot = { instructorId: string; instructorName: string; startAt: string;
 type PendingMove = FreeSlot & { lessonId: string };
 
 const BRUSSELS = "Europe/Brussels";
-const DAY_LABEL = new Intl.DateTimeFormat("nl-BE", { timeZone: BRUSSELS, weekday: "short" });
-const DAY_NUMBER = new Intl.DateTimeFormat("nl-BE", { timeZone: BRUSSELS, day: "numeric" });
 const TIME_LABEL = new Intl.DateTimeFormat("nl-BE", { timeZone: BRUSSELS, hour: "2-digit", minute: "2-digit" });
 const RANGE_DAY = new Intl.DateTimeFormat("nl-BE", { timeZone: BRUSSELS, day: "numeric", month: "long" });
 const RANGE_DAY_YEAR = new Intl.DateTimeFormat("nl-BE", { timeZone: BRUSSELS, day: "numeric", month: "long", year: "numeric" });
@@ -33,10 +32,6 @@ const STATUS: Record<string, { label: string; card: string }> = {
 };
 
 const TRANSMISSION = { AUTOMAAT: "Automaat", MANUEEL: "Manueel" };
-
-function capitalize(value: string) {
-  return value.charAt(0).toUpperCase() + value.slice(1);
-}
 
 function weekLabel(weekStart: Date) {
   const weekEnd = addBrusselsDays(weekStart, 6);
@@ -73,7 +68,6 @@ export function PackageCalendar({ dossier, actions, onUpdated }: { dossier: Stud
   const [adds, setAdds] = useState<FreeSlot[]>([]);
   const [pickedId, setPickedId] = useState<string | null>(null);
   const [draggingId, setDraggingId] = useState<string | null>(null);
-  const [overKey, setOverKey] = useState<string | null>(null);
   const [choosing, setChoosing] = useState<{ slots: FreeSlot[]; lessonId: string | null } | null>(null);
   const [cancelTarget, setCancelTarget] = useState<StudentLesson | null>(null);
   const [cancelling, setCancelling] = useState(false);
@@ -84,7 +78,8 @@ export function PackageCalendar({ dossier, actions, onUpdated }: { dossier: Stud
     const controller = new AbortController();
     setLoading(true);
     const to = addBrusselsDays(weekStart, 7);
-    fetch(`/api/availability?packageId=${dossier.packageId}&from=${weekStart.toISOString()}&to=${to.toISOString()}&transmission=${dossier.transmission}`, { signal: controller.signal })
+    const except = pickedId ? `&exceptLessonId=${encodeURIComponent(pickedId)}` : "";
+    fetch(`/api/availability?packageId=${dossier.packageId}&from=${weekStart.toISOString()}&to=${to.toISOString()}&transmission=${dossier.transmission}${except}`, { signal: controller.signal })
       .then((res) => res.json())
       .then((data: { instructorId: string; instructorName: string; slots: { startAt: string; endAt: string }[] }[]) => {
         if (controller.signal.aborted || !Array.isArray(data)) return;
@@ -93,7 +88,7 @@ export function PackageCalendar({ dossier, actions, onUpdated }: { dossier: Stud
       .catch(() => { if (!controller.signal.aborted) setFreeSlots([]); })
       .finally(() => { if (!controller.signal.aborted) setLoading(false); });
     return () => controller.abort();
-  }, [dossier.packageId, dossier.transmission, weekStart]);
+  }, [dossier.packageId, dossier.transmission, weekStart, pickedId]);
 
   useEffect(() => {
     if (!cancelTarget && !choosing) return;
@@ -114,11 +109,16 @@ export function PackageCalendar({ dossier, actions, onUpdated }: { dossier: Stud
       return { ...lesson, startAt: move.startAt, endAt: move.endAt, instructorId: move.instructorId, instructorName: move.instructorName, pending: true };
     });
 
-  const takenTimes = new Set([...placed.map((lesson) => lesson.startAt), ...adds.map((slot) => slot.startAt)]);
-  const reservedAdds = adds.filter((slot) => !placed.some((lesson) => lesson.startAt === slot.startAt));
+  const movingId = draggingId ?? pickedId;
+  const reservedAdds = adds.filter((slot) => !placed.some((lesson) => lesson.startAt === slot.startAt && lesson.instructorId === slot.instructorId));
+  const occupied = [
+    ...placed.filter((lesson) => lesson.id !== movingId),
+    ...reservedAdds,
+  ];
   const openByTime = new Map<string, FreeSlot[]>();
   for (const slot of freeSlots) {
-    if (takenTimes.has(slot.startAt) || isTooSoonToPlan(new Date(slot.startAt))) continue;
+    if (isTooSoonToPlan(new Date(slot.startAt))) continue;
+    if (occupied.some((item) => intervalsOverlap(item.startAt, item.endAt, slot.startAt, slot.endAt))) continue;
     const group = openByTime.get(slot.startAt) ?? [];
     group.push(slot);
     openByTime.set(slot.startAt, group);
@@ -129,7 +129,52 @@ export function PackageCalendar({ dossier, actions, onUpdated }: { dossier: Stud
   const dirty = moves.length > 0 || reservedAdds.length > 0;
   const days = Array.from({ length: 7 }, (_, index) => addBrusselsDays(weekStart, index));
   const todayKey = brusselsDateKey(new Date());
-  const navButton = "inline-flex h-10 items-center gap-1 rounded-[10px] border border-black/10 bg-white px-3 text-sm font-semibold text-[#111827] transition hover:border-[#111827]";
+  const freeByDay: Record<string, TimelineFree[]> = {};
+  for (const [startAt, slots] of openByTime) {
+    const key = brusselsDateKey(new Date(startAt));
+    const list = freeByDay[key] ?? [];
+    list.push({
+      startAt,
+      endAt: slots[0].endAt,
+      detail: slots.length === 1 ? slots[0].instructorName : `${slots.length} instructeurs`,
+    });
+    freeByDay[key] = list;
+  }
+  const blocksByDay: Record<string, TimelineBlock[]> = {};
+  function pushBlock(key: string, block: TimelineBlock) {
+    const list = blocksByDay[key] ?? [];
+    list.push(block);
+    blocksByDay[key] = list;
+  }
+  for (const lesson of placed) {
+    if (!inWeek(lesson.startAt, weekStart)) continue;
+    const tone = lesson.pending ? "pending" : lesson.status === "CONFIRMED" ? "confirmed" : lesson.status === "PLANNED" ? "planned" : "done";
+    pushBlock(brusselsDateKey(new Date(lesson.startAt)), {
+      id: lesson.id,
+      startAt: lesson.startAt,
+      endAt: lesson.endAt,
+      detail: lesson.instructorName,
+      note: lesson.pending ? "Nog opslaan" : STATUS[lesson.status]?.label ?? lesson.status,
+      tone,
+      dragId: lesson.canChange ? lesson.id : undefined,
+      highlighted: pickedId === lesson.id,
+      onClick: lesson.canChange ? () => setPickedId((current) => (current === lesson.id ? null : lesson.id)) : undefined,
+      onRemove: lesson.canChange ? () => setCancelTarget(dossier.lessons.find((item) => item.id === lesson.id) ?? lesson) : undefined,
+      removeLabel: "Les annuleren",
+    });
+  }
+  for (const slot of reservedAdds) {
+    pushBlock(brusselsDateKey(new Date(slot.startAt)), {
+      id: slotKey(slot),
+      startAt: slot.startAt,
+      endAt: slot.endAt,
+      detail: slot.instructorName,
+      note: "Nieuw · nog opslaan",
+      tone: "choice",
+      removeLabel: "Nieuwe les weghalen",
+      onRemove: () => setAdds((current) => current.filter((item) => slotKey(item) !== slotKey(slot))),
+    });
+  }
 
   function stageMove(lessonId: string, slot: FreeSlot) {
     const lesson = dossier.lessons.find((item) => item.id === lessonId);
@@ -234,142 +279,33 @@ export function PackageCalendar({ dossier, actions, onUpdated }: { dossier: Stud
           <li className="rounded-full border border-[#ed1c24] bg-white px-2.5 py-1 text-[#ed1c24]">Nog opslaan</li>
         </ul>
       </div>
-      <p className="mt-3 text-sm text-[#58595b]">{theory ? "Kies een theoriedag van 6 uur, of sleep een les ernaartoe. Klik daarna op Opslaan." : "Klik een vrij moment en kies een instructeur, of sleep een les ernaartoe. Klik daarna op Opslaan."}</p>
+      <p className="mt-3 text-sm text-[#58595b]">{theory ? "Kies een groene theoriedag, of sleep een les ernaartoe. Klik daarna op Opslaan." : "Klik in het groen om een startuur te kiezen. De les duurt 2 uur. Je kan een les ook verslepen. Klik daarna op Opslaan."}</p>
       {error && <p className="mt-3 text-sm text-[#ed1c24]">{error}</p>}
 
-      <div className="mt-4 overflow-hidden rounded-[10px] border border-black/10">
-        <div className="flex items-center justify-between gap-3 border-b border-black/5 px-3 py-3">
-          <button type="button" className={navButton} onClick={() => setWeekStart(addBrusselsDays(weekStart, -7))}>
-            <span aria-hidden>←</span> Vorige
-          </button>
-          <p className="text-center text-sm font-extrabold text-[#111827] sm:text-base">{weekLabel(weekStart)}</p>
-          <button type="button" className={navButton} onClick={() => setWeekStart(addBrusselsDays(weekStart, 7))}>
-            Volgende <span aria-hidden>→</span>
-          </button>
-        </div>
-        <div className={`relative overflow-x-auto ${loading ? "opacity-60" : ""}`}>
-          <div className="grid min-w-[760px] grid-cols-7">
-            {days.map((day) => {
-              const key = brusselsDateKey(day);
-              const dayLessons = placed.filter((lesson) => inWeek(lesson.startAt, weekStart) && brusselsDateKey(new Date(lesson.startAt)) === key);
-              const dayAdds = reservedAdds.filter((slot) => brusselsDateKey(new Date(slot.startAt)) === key);
-              const dayFree = [...openByTime.entries()]
-                .filter(([startAt]) => brusselsDateKey(new Date(startAt)) === key)
-                .map(([startAt, slots]) => ({ startAt, slots }));
-              const cards = [
-                ...dayLessons.map((lesson) => ({ kind: "lesson" as const, lesson, at: lesson.startAt })),
-                ...dayAdds.map((slot) => ({ kind: "add" as const, slot, at: slot.startAt })),
-                ...dayFree.map((group) => ({ kind: "free" as const, group, at: group.startAt })),
-              ].sort((a, b) => new Date(a.at).getTime() - new Date(b.at).getTime());
-              return (
-                <div key={key} className={`min-h-[240px] border-r border-black/5 p-2 last:border-r-0 ${key === todayKey ? "bg-[#fff5f5]" : ""}`}>
-                  <header className="mb-2 text-center">
-                    <p className="text-[11px] font-bold uppercase tracking-wide text-[#58595b]">{capitalize(DAY_LABEL.format(day))}</p>
-                    <p className={`mx-auto mt-1 flex h-8 w-8 items-center justify-center rounded-full text-sm font-extrabold ${key === todayKey ? "bg-[#ed1c24] text-white" : "text-[#111827]"}`}>
-                      {DAY_NUMBER.format(day)}
-                    </p>
-                  </header>
-                  <ul className="space-y-2">
-                    {cards.map((card) => {
-                      if (card.kind === "lesson") {
-                        const { lesson } = card;
-                        const tone = lesson.pending
-                          ? "border-[#ed1c24] bg-white text-[#111827]"
-                          : STATUS[lesson.status]?.card ?? "border-black/10 bg-white text-[#111827]";
-                        return (
-                          <li key={lesson.id} className="relative">
-                            <button
-                              type="button"
-                              draggable={lesson.canChange}
-                              onDragStart={(event) => {
-                                event.dataTransfer.setData("text/plain", lesson.id);
-                                event.dataTransfer.effectAllowed = "move";
-                                setDraggingId(lesson.id);
-                              }}
-                              onDragEnd={() => { setDraggingId(null); setOverKey(null); }}
-                              onClick={() => {
-                                if (!lesson.canChange) return;
-                                setPickedId((current) => (current === lesson.id ? null : lesson.id));
-                              }}
-                              className={`w-full rounded-lg border px-2 py-2 pr-7 text-left text-xs ${tone} ${lesson.canChange ? "cursor-grab active:cursor-grabbing" : ""} ${pickedId === lesson.id ? "ring-2 ring-[#ed1c24]" : ""}`}
-                            >
-                              <span className="block font-bold">
-                                {TIME_LABEL.format(new Date(lesson.startAt))}–{TIME_LABEL.format(new Date(lesson.endAt))}
-                              </span>
-                              <span className="mt-0.5 block font-medium">{lesson.instructorName}</span>
-                              <span className="mt-1 block text-[11px] font-semibold uppercase tracking-wide opacity-80">
-                                {lesson.pending ? "Nog opslaan" : STATUS[lesson.status]?.label ?? lesson.status}
-                              </span>
-                            </button>
-                            {lesson.canChange && (
-                              <button
-                                type="button"
-                                className="absolute right-1 top-1 flex h-5 w-5 items-center justify-center rounded-full text-[#ed1c24] hover:bg-[#ed1c24] hover:text-white"
-                                aria-label="Les annuleren"
-                                onClick={() => setCancelTarget(dossier.lessons.find((item) => item.id === lesson.id) ?? lesson)}
-                              >
-                                <IoClose className="h-3.5 w-3.5" />
-                              </button>
-                            )}
-                          </li>
-                        );
-                      }
-                      if (card.kind === "add") {
-                        const { slot } = card;
-                        return (
-                          <li key={slotKey(slot)} className="relative">
-                            <div className="rounded-lg border border-[#ed1c24] bg-[#ed1c24] px-2 py-2 pr-7 text-xs text-white">
-                              <span className="block font-bold">{TIME_LABEL.format(new Date(slot.startAt))}–{TIME_LABEL.format(new Date(slot.endAt))}</span>
-                              <span className="mt-0.5 block">{slot.instructorName}</span>
-                              <span className="mt-1 block text-[11px] font-semibold uppercase tracking-wide">Nieuw · nog opslaan</span>
-                            </div>
-                            <button
-                              type="button"
-                              className="absolute right-1 top-1 flex h-5 w-5 items-center justify-center rounded-full text-white hover:bg-white/20"
-                              aria-label="Nieuwe les weghalen"
-                              onClick={() => setAdds((current) => current.filter((item) => slotKey(item) !== slotKey(slot)))}
-                            >
-                              <IoClose className="h-3.5 w-3.5" />
-                            </button>
-                          </li>
-                        );
-                      }
-                      const { group } = card;
-                      const active = overKey === group.startAt;
-                      const label = group.slots.length === 1 ? group.slots[0].instructorName : `${group.slots.length} instructeurs`;
-                      return (
-                        <li key={group.startAt}>
-                          <button
-                            type="button"
-                            onDragOver={(event) => {
-                              if (!draggingId) return;
-                              event.preventDefault();
-                              setOverKey(group.startAt);
-                            }}
-                            onDragLeave={() => setOverKey((current) => (current === group.startAt ? null : current))}
-                            onDrop={(event) => {
-                              event.preventDefault();
-                              const lessonId = event.dataTransfer.getData("text/plain") || draggingId;
-                              setOverKey(null);
-                              setDraggingId(null);
-                              if (lessonId) openInstructorChoice(group.slots, lessonId);
-                            }}
-                            onClick={() => openInstructorChoice(group.slots, pickedId)}
-                            className={`w-full rounded-lg border border-dashed px-2 py-2 text-left text-xs text-[#58595b] ${active || pickedId ? "border-[#ed1c24] bg-[#fff5f5]" : "border-black/15 bg-[#f9f9f9] hover:border-[#111827]"}`}
-                          >
-                            <span className="block font-bold text-[#111827]">{TIME_LABEL.format(new Date(group.startAt))}–{TIME_LABEL.format(new Date(group.slots[0].endAt))}</span>
-                            <span className="mt-0.5 block">Vrij · {label}</span>
-                          </button>
-                        </li>
-                      );
-                    })}
-                    {cards.length === 0 && <li className="px-1 text-center text-[11px] text-[#58595b]">{theory ? "Geen theoriedag" : "Geen momenten"}</li>}
-                  </ul>
-                </div>
-              );
-            })}
-          </div>
-        </div>
+      <div className="mt-4">
+        <WeekTimeline
+          days={days}
+          todayKey={todayKey}
+          weekLabel={weekLabel(weekStart)}
+          loading={loading}
+          onPrevious={() => setWeekStart(addBrusselsDays(weekStart, -7))}
+          onNext={() => setWeekStart(addBrusselsDays(weekStart, 7))}
+          freeByDay={freeByDay}
+          blocksByDay={blocksByDay}
+          dropEnabled={Boolean(draggingId)}
+          onPickFree={(startAt) => {
+            const slots = openByTime.get(startAt);
+            if (slots) openInstructorChoice(slots, pickedId);
+          }}
+          onDropFree={(startAt, data) => {
+            const lessonId = data.getData("text/plain") || draggingId;
+            const slots = openByTime.get(startAt);
+            setDraggingId(null);
+            if (lessonId && slots) openInstructorChoice(slots, lessonId);
+          }}
+          onLessonDragStart={(id) => setDraggingId(id)}
+          onLessonDragEnd={() => setDraggingId(null)}
+        />
       </div>
 
       {dirty && (

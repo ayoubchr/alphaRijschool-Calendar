@@ -364,7 +364,7 @@ function AgendaSlotPicker({
     const controller = new AbortController();
     const to = addBrusselsDays(weekStart, 7);
     setLoading(true);
-    fetch(`/api/availability?packageId=${lesson.packageId}&from=${weekStart.toISOString()}&to=${to.toISOString()}&transmission=${lesson.transmission}`, { signal: controller.signal })
+    fetch(`/api/availability?packageId=${lesson.packageId}&from=${weekStart.toISOString()}&to=${to.toISOString()}&transmission=${lesson.transmission}&exceptLessonId=${encodeURIComponent(lesson.id)}`, { signal: controller.signal })
       .then((res) => res.json())
       .then((data: { instructorId: string; instructorName: string; slots: Slot[] }[]) => {
         if (!controller.signal.aborted && Array.isArray(data)) {
