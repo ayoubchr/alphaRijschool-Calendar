@@ -64,7 +64,7 @@ function gridBounds(frees: TimelineFree[], blocks: TimelineBlock[], highlight: {
   const minutes: number[] = [];
   for (const item of [...frees, ...blocks]) minutes.push(minutesOf(item.startAt), minutesOf(item.endAt));
   if (highlight) minutes.push(minutesOf(highlight.startAt), minutesOf(highlight.endAt));
-  if (minutes.length === 0) return { start: 8 * 60, end: 19 * 60 };
+  if (minutes.length === 0) return { start: 7 * 60, end: 21 * 60 };
   let start = Math.max(6 * 60, Math.floor(Math.min(...minutes) / 60) * 60 - 60);
   let end = Math.ceil(Math.max(...minutes) / 60) * 60 + 60;
   if (end - start < 8 * 60) end = start + 8 * 60;

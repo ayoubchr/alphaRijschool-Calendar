@@ -49,7 +49,7 @@ export const daySlotsSchema = z.object({
         .object({ startTime: time, endTime: time })
         .refine((slot) => slot.startTime < slot.endTime, { path: ["endTime"] })
     )
-    .max(48),
+    .max(56),
 });
 
 export const dayLeaveSchema = z.object({
@@ -66,7 +66,7 @@ export const weeklySlotsSchema = z.object({
         .object({ startTime: time, endTime: time })
         .refine((slot) => slot.startTime < slot.endTime, { path: ["endTime"] })
     )
-    .max(48),
+    .max(56),
 });
 
 export const instructorScheduleSchema = z

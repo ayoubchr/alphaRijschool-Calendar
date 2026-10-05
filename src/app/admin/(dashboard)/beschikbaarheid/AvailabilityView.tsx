@@ -13,9 +13,9 @@ export interface AvailabilityInstructor {
   availabilityExceptions: { id: string; date: string; startTime: string; endTime: string; isAvailable: boolean }[];
 }
 
-/** Every quarter from 08:00 through 18:45, so 18u is a full hour like the others. */
-const SLOT_STARTS = Array.from({ length: ((18 - 8) * 60) / 15 + 4 }, (_, index) => {
-  const minutes = 8 * 60 + index * 15;
+/** Every quarter from 07:00 through 20:45, so 20u is a full hour like the others. */
+const SLOT_STARTS = Array.from({ length: ((20 - 7) * 60) / 15 + 4 }, (_, index) => {
+  const minutes = 7 * 60 + index * 15;
   return `${String(Math.floor(minutes / 60)).padStart(2, "0")}:${String(minutes % 60).padStart(2, "0")}`;
 });
 const WEEKDAYS = [
