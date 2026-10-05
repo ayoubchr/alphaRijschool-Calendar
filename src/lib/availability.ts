@@ -21,7 +21,7 @@ export interface Slot {
   endAt: Date;
 }
 
-/** Lesson start times inside an open stretch, so a lesson can begin at 09:15. */
+/** Starts land on a quarter, but a pupil picks the whole block, not a start inside it. */
 const SLOT_STEP_MINUTES = 15;
 
 const BRUSSELS_TZ = "Europe/Brussels";
@@ -185,13 +185,51 @@ export function computeAvailableSlots(params: {
         );
         if (blockedByException) continue;
 
-        const blockedByBooking = bookedLessons.some((l) => overlaps(slotStart, slotEnd, l.startAt, l.endAt));
-        if (blockedByBooking) continue;
-
         slots.push({ startAt: slotStart, endAt: slotEnd });
       }
     }
   }
 
-  return slots;
+  return collapseQuarterStarts(slots, lessonDurationMinutes).filter(
+    (slot) => !bookedLessons.some((lesson) => overlaps(slot.startAt, slot.endAt, lesson.startAt, lesson.endAt))
+  );
+}
+
+/**
+ * A painted stretch of quarters (08:00, 08:15, …) is one availability period.
+ * The pupil gets whole lessons of the package length from the start of that
+ * period, for example 08:00–10:00 and 10:00–12:00, and cannot shift the start.
+ * One saved block, such as 09:15–11:15, stays that block.
+ */
+function collapseQuarterStarts(slots: Slot[], lessonDurationMinutes: number): Slot[] {
+  const durationMs = lessonDurationMinutes * 60 * 1000;
+  const quarterMs = SLOT_STEP_MINUTES * 60 * 1000;
+  const unique = new Map<number, Slot>();
+  for (const slot of slots) unique.set(slot.startAt.getTime(), slot);
+  const sorted = [...unique.values()].sort((a, b) => a.startAt.getTime() - b.startAt.getTime());
+  const groups: Slot[][] = [];
+  for (const slot of sorted) {
+    const last = groups[groups.length - 1];
+    const previous = last?.[last.length - 1];
+    if (previous && slot.startAt.getTime() - previous.startAt.getTime() === quarterMs) last.push(slot);
+    else groups.push([slot]);
+  }
+
+  const blocks: Slot[] = [];
+  for (const group of groups) {
+    const first = group[0];
+    if (group.length === 1) {
+      blocks.push(first);
+      continue;
+    }
+    const visualEnd = group[group.length - 1].startAt.getTime() + quarterMs;
+    if (visualEnd - first.startAt.getTime() < durationMs) {
+      blocks.push(first);
+      continue;
+    }
+    for (let start = first.startAt.getTime(); start + durationMs <= visualEnd; start += durationMs) {
+      blocks.push({ startAt: new Date(start), endAt: new Date(start + durationMs) });
+    }
+  }
+  return blocks;
 }

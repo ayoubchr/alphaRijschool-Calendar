@@ -279,7 +279,7 @@ export function PackageCalendar({ dossier, actions, onUpdated }: { dossier: Stud
           <li className="rounded-full border border-[#ed1c24] bg-white px-2.5 py-1 text-[#ed1c24]">Nog opslaan</li>
         </ul>
       </div>
-      <p className="mt-3 text-sm text-[#58595b]">{theory ? "Kies een groene theoriedag, of sleep een les ernaartoe. Klik daarna op Opslaan." : "Klik in het groen om een startuur te kiezen. De les duurt 2 uur. Je kan een les ook verslepen. Klik daarna op Opslaan."}</p>
+      <p className="mt-3 text-sm text-[#58595b]">{theory ? "Kies een groene theoriedag, of sleep een les ernaartoe. Klik daarna op Opslaan." : "Klik een groen blok. Dat is de hele les van 2 uur. Je kan een les ook verslepen. Klik daarna op Opslaan."}</p>
       {error && <p className="mt-3 text-sm text-[#ed1c24]">{error}</p>}
 
       <div className="mt-4">

@@ -182,7 +182,7 @@ export function CalendarStep({ packageId, transmission, lessonCount, blockHours 
         onNext={() => setWeekStart(addBrusselsDays(weekStart, 7))}
         freeByDay={freeByDay}
         blocksByDay={blocksByDay}
-        hint={exact ? "Klik een groene dag. Die duurt 6 uur." : "Klik in het groen om een startuur te kiezen. De les duurt daarna 2 uur, bijvoorbeeld van 09:15 tot 11:15."}
+        hint={exact ? "Klik een groene dag. Die duurt 6 uur." : "Klik een groen blok. Dat is de hele les, bijvoorbeeld van 08:00 tot 10:00."}
         onPickFree={(startAt) => {
           const options = openByTime.get(startAt);
           if (options) openInstructorChoice(options);

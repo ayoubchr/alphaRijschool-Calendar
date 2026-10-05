@@ -107,7 +107,7 @@ export function LessonCalendar({
         freeByDay={freeByDay}
         blocksByDay={blocksByDay}
         highlight={selectedSlot}
-        hint="Klik in het groen. Dat is het startuur, de les duurt daarna 2 uur."
+        hint="Klik een groen blok. Dat is de hele les van 2 uur."
         onPickFree={pick}
       />
       {choosing && (

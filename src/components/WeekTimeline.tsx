@@ -71,18 +71,6 @@ function gridBounds(frees: TimelineFree[], blocks: TimelineBlock[], highlight: {
   return { start, end: Math.min(23 * 60, end) };
 }
 
-function runsOf(slots: TimelineFree[]) {
-  const sorted = [...slots].sort((a, b) => minutesOf(a.startAt) - minutesOf(b.startAt));
-  const runs: TimelineFree[][] = [];
-  for (const slot of sorted) {
-    const last = runs[runs.length - 1];
-    const previous = last?.[last.length - 1];
-    if (previous && minutesOf(slot.startAt) - minutesOf(previous.startAt) === 15) last.push(slot);
-    else runs.push([slot]);
-  }
-  return runs;
-}
-
 export function WeekTimeline({
   days,
   todayKey,
@@ -198,7 +186,6 @@ export function WeekTimeline({
                   hover={hover}
                   topFor={topFor}
                   onPickFree={onPickFree}
-                  onHover={setHover}
                   onDragOverFree={allowDrop}
                   onDropFree={(startAt, data) => {
                     setHover(null);
@@ -229,7 +216,6 @@ function DayColumn({
   hover,
   topFor,
   onPickFree,
-  onHover,
   onDragOverFree,
   onDropFree,
   onLessonDragStart,
@@ -244,21 +230,19 @@ function DayColumn({
   hover: TimelineFree | null;
   topFor: (iso: string) => number;
   onPickFree: (startAt: string) => void;
-  onHover: (slot: TimelineFree | null) => void;
   onDragOverFree: (slot: TimelineFree, event: DragEvent<HTMLButtonElement>) => void;
   onDropFree: (startAt: string, data: DataTransfer) => void;
   onLessonDragStart?: (id: string) => void;
   onLessonDragEnd?: () => void;
 }) {
-  const runs = runsOf(frees);
-  const highlightIsBlock = Boolean(highlight && runs.some((run) => run.length === 1 && run[0].startAt === highlight.startAt));
+  const highlightIsBlock = Boolean(highlight && frees.some((slot) => slot.startAt === highlight.startAt));
   const lines: { minute: number; strong: boolean }[] = [];
   for (let minute = bounds.start; minute < bounds.end; minute += 30) {
     lines.push({ minute, strong: minute % 60 === 0 });
   }
 
   return (
-    <div className={`relative border-l border-[#f4f4f5] ${today ? "bg-[#fff7f7]" : "bg-white"}`} style={{ height }} onMouseLeave={() => onHover(null)}>
+    <div className={`relative border-l border-[#f4f4f5] ${today ? "bg-[#fff7f7]" : "bg-white"}`} style={{ height }}>
       {lines.map((line) => (
         <div
           key={line.minute}
@@ -266,72 +250,29 @@ function DayColumn({
           style={{ top: ((line.minute - bounds.start) / 15) * QUARTER_PX }}
         />
       ))}
-      {runs.map((run) => {
-        const first = run[0];
-        const last = run[run.length - 1];
-        if (run.length === 1) {
-          const selected = highlight?.startAt === first.startAt;
-          return (
-            <button
-              key={first.startAt}
-              type="button"
-              aria-label={`Vrij om ${clock(minutesOf(first.startAt))}`}
-              onClick={() => onPickFree(first.startAt)}
-              onDragOver={(event) => onDragOverFree(first, event)}
-              onDrop={(event) => {
-                event.preventDefault();
-                onDropFree(first.startAt, event.dataTransfer);
-              }}
-              className={`absolute inset-x-1.5 z-30 flex flex-col items-start overflow-hidden rounded-lg px-1.5 py-1 text-left ${
-                selected ? TONE.choice : "bg-emerald-50 text-emerald-950 shadow-[inset_0_0_0_1px_rgba(16,185,129,0.28)] hover:bg-emerald-200 hover:shadow-[inset_0_0_0_2px_rgb(16,185,129)]"
-              } ${hover?.startAt === first.startAt ? "ring-2 ring-[#ed1c24]" : ""}`}
-              style={{ top: topFor(first.startAt) + 2, height: Math.max(topFor(first.endAt) - topFor(first.startAt) - 4, QUARTER_PX - 4) }}
-            >
-              <span className="block text-[11px] font-semibold leading-tight tabular-nums">{rangeLabel(first.startAt, first.endAt)}</span>
-              {first.detail && <span className={`mt-0.5 block truncate text-[11px] ${selected ? "text-white/90" : "text-emerald-900/80"}`}>{first.detail}</span>}
-            </button>
-          );
-        }
-        const details = new Set(run.map((slot) => slot.detail).filter(Boolean));
-        const detail = details.size === 1 ? [...details][0] : undefined;
-        const top = topFor(first.startAt);
-        const bottom = topFor(last.startAt) + QUARTER_PX;
+      {frees.map((slot) => {
+        const selected = highlight?.startAt === slot.startAt;
         return (
-          <div key={first.startAt} className="absolute inset-x-1.5 z-10" style={{ top: top + 2, height: bottom - top - 4 }}>
-            <div className="pointer-events-none absolute inset-0 overflow-hidden rounded-lg bg-emerald-100 text-emerald-950 shadow-[inset_0_0_0_1px_rgba(16,185,129,0.2)]">
-              <span className="block px-1.5 pt-1 text-[11px] font-semibold leading-tight tabular-nums">
-                {clock(minutesOf(first.startAt))}–{clock(minutesOf(last.startAt) + 15)}
-              </span>
-              {detail && <span className="block truncate px-1.5 text-[11px] text-emerald-900/80">{detail}</span>}
-            </div>
-            {run.map((slot) => (
-              <button
-                key={slot.startAt}
-                type="button"
-                aria-label={`Start om ${clock(minutesOf(slot.startAt))}`}
-                onClick={() => onPickFree(slot.startAt)}
-                onMouseEnter={() => onHover(slot)}
-                onDragOver={(event) => onDragOverFree(slot, event)}
-                onDrop={(event) => {
-                  event.preventDefault();
-                  onDropFree(slot.startAt, event.dataTransfer);
-                }}
-                className={highlight?.startAt === slot.startAt ? "absolute inset-x-0 z-30 bg-[#ed1c24]/80" : "absolute inset-x-0 z-30"}
-                style={{ top: topFor(slot.startAt) - top, height: QUARTER_PX }}
-              />
-            ))}
-          </div>
+          <button
+            key={slot.startAt}
+            type="button"
+            aria-label={rangeLabel(slot.startAt, slot.endAt)}
+            onClick={() => onPickFree(slot.startAt)}
+            onDragOver={(event) => onDragOverFree(slot, event)}
+            onDrop={(event) => {
+              event.preventDefault();
+              onDropFree(slot.startAt, event.dataTransfer);
+            }}
+            className={`absolute inset-x-1.5 z-30 flex flex-col items-start overflow-hidden rounded-lg px-1.5 py-1 text-left ${
+              selected ? TONE.choice : "bg-emerald-50 text-emerald-950 shadow-[inset_0_0_0_1px_rgba(16,185,129,0.28)] hover:bg-emerald-200 hover:shadow-[inset_0_0_0_2px_rgb(16,185,129)]"
+            } ${hover?.startAt === slot.startAt ? "ring-2 ring-[#ed1c24]" : ""}`}
+            style={{ top: topFor(slot.startAt) + 2, height: Math.max(topFor(slot.endAt) - topFor(slot.startAt) - 4, QUARTER_PX - 4) }}
+          >
+            <span className="block text-[11px] font-semibold leading-tight tabular-nums">{rangeLabel(slot.startAt, slot.endAt)}</span>
+            {slot.detail && <span className={`mt-0.5 block truncate text-[11px] ${selected ? "text-white/90" : "text-emerald-900/80"}`}>{slot.detail}</span>}
+          </button>
         );
       })}
-      {hover && runs.some((run) => run.length > 1 && run.some((slot) => slot.startAt === hover.startAt)) && (
-        <div
-          className="pointer-events-none absolute inset-x-1.5 z-20 overflow-hidden rounded-lg bg-emerald-300/90 text-emerald-950 shadow-[inset_0_0_0_1px_rgba(6,95,70,0.35)]"
-          style={{ top: topFor(hover.startAt) + 2, height: Math.max(topFor(hover.endAt) - topFor(hover.startAt) - 4, QUARTER_PX) }}
-        >
-          <span className="block px-1.5 pt-1 text-[11px] font-semibold leading-tight tabular-nums">{rangeLabel(hover.startAt, hover.endAt)}</span>
-          {hover.detail && <span className="block truncate px-1.5 text-[11px]">{hover.detail}</span>}
-        </div>
-      )}
       {highlight && !highlightIsBlock && (
         <div
           className="pointer-events-none absolute inset-x-1.5 z-20 overflow-hidden rounded-lg bg-[#ed1c24]/15 shadow-[inset_0_0_0_1px_rgba(237,28,36,0.35)]"

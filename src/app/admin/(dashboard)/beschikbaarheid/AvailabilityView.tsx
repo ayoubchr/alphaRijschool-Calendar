@@ -160,7 +160,7 @@ export function AvailabilityView({
     <div>
       <h1 className="mb-2 text-2xl font-extrabold text-[#111827]">Beschikbaarheid</h1>
       <p className="mb-6 max-w-3xl text-sm text-[#58595b]">
-        Sleep over een dag om een periode open of dicht te zetten. Een groen blok is de tijd waarop lessen mogen starten. ‘Elke week’ kopieert die uren naar elke week.
+        Sleep over een dag om een periode open of dicht te zetten. De leerling kiest dat blok zoals het er staat en kan het startuur niet verschuiven. Een langere periode wordt vanaf het begin opgedeeld in lessen van 2 uur. ‘Elke week’ kopieert die uren naar elke week.
       </p>
       {error && <p className="mb-4 text-sm text-[#ed1c24]">{error}</p>}
 
