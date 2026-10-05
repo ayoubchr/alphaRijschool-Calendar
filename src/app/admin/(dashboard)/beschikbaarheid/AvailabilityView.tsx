@@ -1,6 +1,7 @@
 "use client";
 
 import { type FormEvent, type PointerEvent as ReactPointerEvent, useRef, useState } from "react";
+import { blocksOverlap, coalesceLegacyBlocks, minutesOf, resolveDayBlocks, sameBlocks, timeFromMinutes, type TimeBlock } from "@/lib/availabilityBlocks";
 import { addBrusselsDays, brusselsDateKey, startOfBrusselsWeek } from "@/lib/brusselsWeek";
 import { addInstructor, deleteInstructor, saveDaySlots, saveWeeklySlots } from "./actions";
 
@@ -36,45 +37,47 @@ const fieldClass = "mt-1 w-full rounded-[10px] border border-black/10 px-3 py-2 
 const buttonClass = "rounded-[10px] bg-[#ed1c24] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#111827] disabled:opacity-60";
 
 const QUARTER_PX = 24;
+const DAY_END = timeFromMinutes(minutesOf(SLOT_STARTS[SLOT_STARTS.length - 1]) + 15);
+const GRID_TIMES = [...SLOT_STARTS, DAY_END];
 
-function plusMinutes(start: string, amount: number) {
-  const [hour, minute] = start.split(":").map(Number);
-  const total = hour * 60 + minute + amount;
-  return `${String(Math.floor(total / 60)).padStart(2, "0")}:${String(total % 60).padStart(2, "0")}`;
+function sortBlocks(blocks: TimeBlock[]) {
+  return [...blocks].sort((left, right) => left.start.localeCompare(right.start));
 }
 
-function slotEnd(start: string) {
-  return plusMinutes(start, 120);
-}
-
-function selectionRanges(open: Set<string>) {
-  const ranges: { from: number; to: number }[] = [];
-  SLOT_STARTS.forEach((start, index) => {
-    if (!open.has(start)) return;
-    const last = ranges[ranges.length - 1];
-    if (last && last.to === index - 1) last.to = index;
-    else ranges.push({ from: index, to: index });
-  });
-  return ranges;
+function weeklyBlocks(rules: AvailabilityInstructor["availabilityRules"]) {
+  const byDay = new Map<number, TimeBlock[]>();
+  for (const rule of rules) {
+    const list = byDay.get(rule.weekday) ?? [];
+    list.push({ start: rule.startTime.slice(0, 5), end: rule.endTime.slice(0, 5) });
+    byDay.set(rule.weekday, list);
+  }
+  const seen = new Set<string>();
+  const blocks: TimeBlock[] = [];
+  for (const windows of byDay.values()) {
+    for (const block of coalesceLegacyBlocks(windows)) {
+      const key = `${block.start}-${block.end}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      blocks.push(block);
+    }
+  }
+  return sortBlocks(blocks);
 }
 
 function weekdayOf(dateKey: string) {
   return new Date(`${dateKey}T00:00:00.000Z`).getUTCDay();
 }
 
-function openStarts(instructor: AvailabilityInstructor, dateKey: string) {
+function dayBlocks(instructor: AvailabilityInstructor, dateKey: string) {
   const weekday = weekdayOf(dateKey);
-  const open = new Set(
+  return resolveDayBlocks(
     instructor.availabilityRules
-      .filter((rule) => rule.weekday === weekday && SLOT_STARTS.includes(rule.startTime.slice(0, 5)))
-      .map((rule) => rule.startTime.slice(0, 5))
+      .filter((rule) => rule.weekday === weekday)
+      .map((rule) => ({ start: rule.startTime.slice(0, 5), end: rule.endTime.slice(0, 5) })),
+    instructor.availabilityExceptions
+      .filter((exception) => exception.date === dateKey)
+      .map((exception) => ({ start: exception.startTime.slice(0, 5), end: exception.endTime.slice(0, 5), isAvailable: exception.isAvailable })),
   );
-  for (const item of instructor.availabilityExceptions.filter((exception) => exception.date === dateKey)) {
-    const start = item.startTime.slice(0, 5);
-    if (item.isAvailable) open.add(start);
-    else open.delete(start);
-  }
-  return open;
 }
 
 export function AvailabilityView({
@@ -116,18 +119,25 @@ export function AvailabilityView({
     (event.target as HTMLFormElement).reset();
   }
 
-  async function saveDay(dateKey: string, starts: string[]) {
+  async function saveDay(dateKey: string, blocks: TimeBlock[]) {
     if (!selected) return;
     const previous = selected.availabilityExceptions;
-    const slots = starts.map((startTime) => ({ startTime, endTime: slotEnd(startTime) }));
-    const covered = new Set(
-      selected.availabilityRules.filter((rule) => rule.weekday === weekdayOf(dateKey)).map((rule) => rule.startTime.slice(0, 5))
+    const slots = blocks.map((block) => ({ startTime: block.start, endTime: block.end }));
+    const weekday = weekdayOf(dateKey);
+    const weekly = resolveDayBlocks(
+      selected.availabilityRules
+        .filter((rule) => rule.weekday === weekday)
+        .map((rule) => ({ start: rule.startTime.slice(0, 5), end: rule.endTime.slice(0, 5) })),
+      [],
     );
-    const wanted = new Set(starts);
-    const overrides = [
-      ...starts.filter((start) => !covered.has(start)).map((startTime) => ({ id: `${dateKey}-${startTime}`, date: dateKey, startTime, endTime: slotEnd(startTime), isAvailable: true })),
-      ...Array.from(covered).filter((start) => !wanted.has(start)).map((startTime) => ({ id: `${dateKey}-off-${startTime}`, date: dateKey, startTime, endTime: slotEnd(startTime), isAvailable: false })),
-    ];
+    const overrides = sameBlocks(weekly, blocks)
+      ? []
+      : [
+          ...selected.availabilityRules
+            .filter((rule) => rule.weekday === weekday)
+            .map((rule) => ({ id: `${dateKey}-off-${rule.startTime}`, date: dateKey, startTime: rule.startTime.slice(0, 5), endTime: rule.endTime.slice(0, 5), isAvailable: false })),
+          ...blocks.map((block) => ({ id: `${dateKey}-${block.start}`, date: dateKey, startTime: block.start, endTime: block.end, isAvailable: true })),
+        ];
     setError(null);
     setInstructors((prev) =>
       prev.map((instructor) =>
@@ -160,7 +170,7 @@ export function AvailabilityView({
     <div>
       <h1 className="mb-2 text-2xl font-extrabold text-[#111827]">Beschikbaarheid</h1>
       <p className="mb-6 max-w-3xl text-sm text-[#58595b]">
-        Sleep over een dag om een periode open of dicht te zetten. De leerling kiest dat blok zoals het er staat en kan het startuur niet verschuiven. Een langere periode wordt vanaf het begin opgedeeld in lessen van 2 uur. ‘Elke week’ kopieert die uren naar elke week.
+        Sleep over een dag om een blok te tekenen, zo lang als je wil. Een blok ernaast blijft een apart blok. Het kruis haalt dat ene blok weg. Een langer blok wordt voor de leerling opgedeeld in lessen van 2 uur. ‘Elke week’ kopieert de blokken naar elke week.
       </p>
       {error && <p className="mb-4 text-sm text-[#ed1c24]">{error}</p>}
 
@@ -231,10 +241,10 @@ export function AvailabilityView({
           currentId={selected.id}
           saving={saving}
           onClose={() => setWeeklyOpen(false)}
-          onSave={async (instructorIds, weekdays, starts) => {
+          onSave={async (instructorIds, weekdays, blocks) => {
             setSaving(true);
             setError(null);
-            const slots = starts.map((startTime) => ({ startTime, endTime: slotEnd(startTime) }));
+            const slots = blocks.map((block) => ({ startTime: block.start, endTime: block.end }));
             for (const instructorId of instructorIds) {
               const result = await saveWeeklySlots({ instructorId, weekdays, slots });
               if (!result?.ok) {
@@ -288,16 +298,40 @@ export function AvailabilityView({
           saving={saving}
           onWeekChange={setWeekStart}
           onSaveDay={saveDay}
+          onError={setError}
         />
       )}
     </div>
   );
 }
 
+function rowIndex(time: string) {
+  return GRID_TIMES.indexOf(time.slice(0, 5));
+}
+
+function blockStyle(block: TimeBlock) {
+  const top = rowIndex(block.start) * QUARTER_PX + 2;
+  const height = ((minutesOf(block.end) - minutesOf(block.start)) / 15) * QUARTER_PX - 4;
+  return { top, height: Math.max(height, QUARTER_PX - 4) };
+}
+
+function covers(blocks: TimeBlock[], time: string) {
+  return blocks.some((block) => time >= block.start && time < block.end);
+}
+
+function rangeBlock(origin: string, current: string): TimeBlock | null {
+  const from = origin < current ? origin : current;
+  const to = origin < current ? current : origin;
+  if (from === DAY_END) return null;
+  const end = to === DAY_END ? DAY_END : timeFromMinutes(minutesOf(to) + 15);
+  if (end <= from) return null;
+  return { start: from, end };
+}
+
 function TimeGutter() {
   return (
     <div>
-      {SLOT_STARTS.map((start) => (
+      {GRID_TIMES.map((start) => (
         <div key={start} className="relative" style={{ height: QUARTER_PX }}>
           {start.endsWith(":00") && (
             <span className="absolute right-2 top-1 text-[11px] font-medium tabular-nums text-[#a1a1aa]">{start}</span>
@@ -309,76 +343,140 @@ function TimeGutter() {
 }
 
 function TimeColumn({
-  open,
+  blocks,
   dateKey,
   label,
   today,
   anchor,
+  previewEnd,
   onPick,
+  onHover,
+  onCreate,
+  onReject,
+  onRemove,
 }: {
-  open: Set<string>;
+  blocks: TimeBlock[];
   dateKey?: string;
   label?: string;
   today?: boolean;
   anchor?: string | null;
-  onPick?: (start: string) => void;
+  previewEnd?: string | null;
+  onPick?: (time: string) => void;
+  onHover?: (time: string | null) => void;
+  onCreate?: (block: TimeBlock) => void;
+  onReject?: (message: string | null) => void;
+  onRemove: (block: TimeBlock) => void;
 }) {
-  const ranges = selectionRanges(open);
+  const dragRef = useRef<{ origin: string; current: string } | null>(null);
+  const [draft, setDraft] = useState<TimeBlock | null>(null);
+  const preview = draft ?? (anchor && previewEnd && previewEnd > anchor ? { start: anchor, end: previewEnd } : null);
+
+  function startDrag(event: ReactPointerEvent<HTMLDivElement>) {
+    if (!onCreate || event.button !== 0) return;
+    if ((event.target as HTMLElement).closest("[data-remove]")) return;
+    const cell = (event.target as HTMLElement).closest("[data-slot]");
+    const time = cell?.getAttribute("data-time");
+    if (!time || time === DAY_END || covers(blocks, time)) return;
+    event.preventDefault();
+    event.currentTarget.setPointerCapture(event.pointerId);
+    dragRef.current = { origin: time, current: time };
+    setDraft(rangeBlock(time, time));
+  }
+
+  function moveDrag(event: ReactPointerEvent<HTMLDivElement>) {
+    const drag = dragRef.current;
+    if (!drag) return;
+    const cell = document.elementFromPoint(event.clientX, event.clientY)?.closest("[data-slot]");
+    const time = cell?.getAttribute("data-time");
+    if (!time || time === drag.current) return;
+    drag.current = time;
+    setDraft(rangeBlock(drag.origin, time));
+  }
+
+  function finishDrag() {
+    const drag = dragRef.current;
+    dragRef.current = null;
+    setDraft(null);
+    if (!drag || !onCreate || drag.origin === drag.current) return;
+    const block = rangeBlock(drag.origin, drag.current);
+    if (!block) return;
+    if (blocks.some((existing) => blocksOverlap(existing, block))) {
+      onReject?.("Dat blok overlapt een blok dat er al staat.");
+      return;
+    }
+    onReject?.(null);
+    onCreate(block);
+  }
+
   return (
-    <div className={`relative border-l border-[#f4f4f5] ${today ? "bg-[#fff7f7]" : "bg-white"}`}>
-      {SLOT_STARTS.map((start) => {
-        const minute = start.slice(3);
-        const on = open.has(start);
-        const line = on ? "" : minute === "00" ? "border-t border-[#e4e4e7]" : minute === "30" ? "border-t border-[#f4f4f5]" : "";
-        const shared = `block w-full ${line}`;
+    <div
+      className={`relative border-l border-[#f4f4f5] ${today ? "bg-[#fff7f7]" : "bg-white"} ${onCreate ? "touch-none" : ""}`}
+      onMouseLeave={() => onHover?.(null)}
+      onPointerDown={startDrag}
+      onPointerMove={moveDrag}
+      onPointerUp={finishDrag}
+      onPointerCancel={finishDrag}
+    >
+      {GRID_TIMES.map((time) => {
+        const minute = time.slice(3);
+        const line = minute === "00" ? "border-t border-[#e4e4e7]" : minute === "30" ? "border-t border-[#f4f4f5]" : "";
         if (onPick) {
           return (
             <button
-              key={start}
+              key={time}
               type="button"
               data-slot=""
-              data-start={start}
-              aria-pressed={on}
-              aria-label={label ? `${label} ${start}` : start}
-              onClick={() => onPick(start)}
-              className={`${shared} ${on ? "" : "hover:bg-black/[0.025]"}`}
+              data-time={time}
+              aria-label={label ? `${label} ${time}` : time}
+              onClick={() => onPick(time)}
+              onMouseEnter={() => onHover?.(time)}
+              className={`block w-full ${line} hover:bg-black/[0.025]`}
               style={{ height: QUARTER_PX }}
             />
           );
         }
         return (
           <div
-            key={start}
+            key={time}
             data-slot=""
             data-date={dateKey}
-            data-start={start}
-            role="button"
-            aria-pressed={on}
-            aria-label={label ? `${label} ${start}` : start}
-            className={`${shared} ${on ? "" : "hover:bg-black/[0.025]"}`}
+            data-time={time}
+            className={`block w-full ${line}`}
             style={{ height: QUARTER_PX }}
           />
         );
       })}
-      {ranges.map((range) => (
+      {preview && (
         <div
-          key={SLOT_STARTS[range.from]}
-          className="pointer-events-none absolute inset-x-1.5 overflow-hidden rounded-lg bg-emerald-100 text-emerald-950 shadow-[inset_0_0_0_1px_rgba(16,185,129,0.2)]"
-          style={{ top: range.from * QUARTER_PX + 2, height: (range.to - range.from + 1) * QUARTER_PX - 4 }}
+          className="pointer-events-none absolute inset-x-1.5 rounded-lg bg-emerald-200/80"
+          style={blockStyle(preview)}
         >
-          {range.to > range.from && (
-            <span className="block px-1.5 pt-1 text-[11px] font-semibold leading-tight tabular-nums">
-              {SLOT_STARTS[range.from]}–{plusMinutes(SLOT_STARTS[range.to], 15)}
-            </span>
-          )}
+          <span className="block px-1.5 pt-1 text-[11px] font-semibold leading-tight tabular-nums text-emerald-950">
+            {preview.start}–{preview.end}
+          </span>
+        </div>
+      )}
+      {blocks.map((block) => (
+        <div
+          key={`${block.start}-${block.end}`}
+          className="pointer-events-none absolute inset-x-1.5 overflow-hidden rounded-lg bg-emerald-100 text-emerald-950 shadow-[inset_0_0_0_1px_rgba(16,185,129,0.28)]"
+          style={blockStyle(block)}
+        >
+          <span className="block px-1.5 pt-1 pr-6 text-[11px] font-semibold leading-tight tabular-nums">
+            {block.start}–{block.end}
+          </span>
+          <button
+            type="button"
+            aria-label={`Blok ${block.start}–${block.end} weghalen`}
+            onClick={() => onRemove(block)}
+            data-remove=""
+            onPointerDown={(event) => event.stopPropagation()}
+            className="pointer-events-auto absolute right-1 top-1 flex h-5 w-5 items-center justify-center rounded-full text-sm leading-none text-emerald-950 hover:bg-emerald-200"
+          >
+            ×
+          </button>
         </div>
       ))}
-      {anchor && SLOT_STARTS.includes(anchor) && (
-        <div
-          className="pointer-events-none absolute inset-x-1 rounded-md ring-2 ring-emerald-500"
-          style={{ top: SLOT_STARTS.indexOf(anchor) * QUARTER_PX + 1, height: QUARTER_PX - 2 }}
-        />
-      )}
     </div>
   );
 }
@@ -396,38 +494,39 @@ function WeeklyModal({
   currentId: string;
   saving: boolean;
   onClose: () => void;
-  onSave: (instructorIds: string[], weekdays: number[], starts: string[]) => void;
+  onSave: (instructorIds: string[], weekdays: number[], blocks: TimeBlock[]) => void;
 }) {
   const [instructorIds, setInstructorIds] = useState(() => [currentId]);
   const [weekdays, setWeekdays] = useState(() => Array.from(new Set(rules.map((rule) => rule.weekday))));
-  const [starts, setStarts] = useState(() =>
-    SLOT_STARTS.filter((start) => rules.some((rule) => rule.startTime.slice(0, 5) === start))
-  );
+  const [blocks, setBlocks] = useState(() => weeklyBlocks(rules));
   const [anchor, setAnchor] = useState<string | null>(null);
+  const [previewEnd, setPreviewEnd] = useState<string | null>(null);
+  const [localError, setLocalError] = useState<string | null>(null);
 
   function toggleDay(day: number) {
     setWeekdays((current) => (current.includes(day) ? current.filter((item) => item !== day) : [...current, day]));
   }
 
-  function chooseSlot(start: string) {
+  function chooseTime(time: string) {
     if (!anchor) {
-      setAnchor(start);
+      if (time === DAY_END || covers(blocks, time)) return;
+      setAnchor(time);
+      setLocalError(null);
       return;
     }
-    if (anchor === start) {
-      setStarts((current) => (current.includes(start) ? current.filter((item) => item !== start) : [...current, start]));
-      setAnchor(null);
+    if (time <= anchor) {
+      setAnchor(time === DAY_END || covers(blocks, time) ? null : time);
       return;
     }
-    const [from, to] = anchor < start ? [anchor, start] : [start, anchor];
-    const range = SLOT_STARTS.filter((slot) => slot >= from && slot <= to);
-    const clear = starts.includes(anchor);
-    setStarts((current) =>
-      clear
-        ? current.filter((slot) => !range.includes(slot))
-        : SLOT_STARTS.filter((slot) => current.includes(slot) || range.includes(slot))
-    );
+    const block = { start: anchor, end: time };
     setAnchor(null);
+    setPreviewEnd(null);
+    if (blocks.some((existing) => blocksOverlap(existing, block))) {
+      setLocalError("Dat blok overlapt een blok dat er al staat.");
+      return;
+    }
+    setLocalError(null);
+    setBlocks((current) => sortBlocks([...current, block]));
   }
 
   return (
@@ -470,15 +569,23 @@ function WeeklyModal({
             </button>
           ))}
         </div>
-        <p className="mt-4 text-sm font-semibold text-[#111827]">Uren</p>
-        <p className="mt-1 text-sm text-[#58595b]">Klik het begin en daarna het einde. Zonder groen op te slaan maakt die dagen leeg.</p>
+        <p className="mt-4 text-sm font-semibold text-[#111827]">Blokken</p>
+        <p className="mt-1 text-sm text-[#58595b]">Klik het begin en daarna het einde. Een kruis haalt een blok weg. Zonder blokken op te slaan maakt die dagen leeg.</p>
+        {localError && <p className="mt-2 text-sm text-[#ed1c24]">{localError}</p>}
         <div className="mt-3 grid max-h-[28rem] grid-cols-[3.25rem_1fr] overflow-y-auto rounded-xl border border-black/5">
           <TimeGutter />
-          <TimeColumn open={new Set(starts)} anchor={anchor} onPick={chooseSlot} />
+          <TimeColumn
+            blocks={blocks}
+            anchor={anchor}
+            previewEnd={previewEnd}
+            onPick={chooseTime}
+            onHover={(time) => setPreviewEnd(anchor && time && time > anchor ? time : null)}
+            onRemove={(block) => setBlocks((current) => current.filter((item) => item.start !== block.start || item.end !== block.end))}
+          />
         </div>
         <div className="mt-5 flex justify-end gap-2">
           <button type="button" onClick={onClose} className="rounded-[10px] border border-black/10 px-4 py-2 text-sm font-semibold">Annuleren</button>
-          <button type="button" disabled={saving || weekdays.length === 0 || instructorIds.length === 0} onClick={() => onSave(instructorIds, weekdays, starts)} className={buttonClass}>{starts.length === 0 ? "Wissen" : "Opslaan"}</button>
+          <button type="button" disabled={saving || weekdays.length === 0 || instructorIds.length === 0} onClick={() => onSave(instructorIds, weekdays, blocks)} className={buttonClass}>{blocks.length === 0 ? "Wissen" : "Opslaan"}</button>
         </div>
       </div>
     </div>
@@ -522,6 +629,7 @@ function AvailabilityGrid({
   saving,
   onWeekChange,
   onSaveDay,
+  onError,
 }: {
   instructor: AvailabilityInstructor;
   days: Date[];
@@ -529,126 +637,10 @@ function AvailabilityGrid({
   weekStart: Date;
   saving: boolean;
   onWeekChange: (next: Date) => void;
-  onSaveDay: (dateKey: string, starts: string[]) => Promise<void>;
+  onSaveDay: (dateKey: string, blocks: TimeBlock[]) => Promise<void>;
+  onError: (message: string | null) => void;
 }) {
-  const gridRef = useRef<HTMLDivElement>(null);
-  const dragRef = useRef<{
-    mode: "on" | "off";
-    original: Map<string, Set<string>>;
-    dirty: Map<string, Set<string>>;
-    path: { dateKey: string; start: string }[];
-  } | null>(null);
-  const [preview, setPreview] = useState<Record<string, string[]> | null>(null);
   const weekLabel = `${days[0].toLocaleDateString("nl-BE", { timeZone: BRUSSELS, day: "numeric", month: "short" })} – ${days[6].toLocaleDateString("nl-BE", { timeZone: BRUSSELS, day: "numeric", month: "short" })}`;
-
-  function startsFor(dateKey: string) {
-    if (preview && dateKey in preview) return new Set(preview[dateKey]);
-    return openStarts(instructor, dateKey);
-  }
-
-  function publishDrag() {
-    const drag = dragRef.current;
-    if (!drag) return;
-    setPreview(Object.fromEntries([...drag.dirty].map(([key, value]) => [key, SLOT_STARTS.filter((slot) => value.has(slot))])));
-  }
-
-  function rememberDay(dateKey: string) {
-    const drag = dragRef.current;
-    if (!drag || drag.original.has(dateKey)) return;
-    const open = openStarts(instructor, dateKey);
-    drag.original.set(dateKey, new Set(open));
-    drag.dirty.set(dateKey, new Set(open));
-  }
-
-  function applyCell(dateKey: string, start: string) {
-    const drag = dragRef.current;
-    if (!drag) return;
-    rememberDay(dateKey);
-    const slots = drag.dirty.get(dateKey)!;
-    if (drag.mode === "on") slots.add(start);
-    else slots.delete(start);
-  }
-
-  function restoreCell(dateKey: string, start: string) {
-    const drag = dragRef.current;
-    if (!drag) return;
-    const slots = drag.dirty.get(dateKey)!;
-    if (drag.original.get(dateKey)!.has(start)) slots.add(start);
-    else slots.delete(start);
-  }
-
-  function paint(dateKey: string, start: string) {
-    const drag = dragRef.current;
-    if (!drag) return;
-    const last = drag.path[drag.path.length - 1];
-    if (last?.dateKey === dateKey && last.start === start) return;
-
-    const index = drag.path.findIndex((item) => item.dateKey === dateKey && item.start === start);
-    if (index === -1) {
-      drag.path.push({ dateKey, start });
-      applyCell(dateKey, start);
-    } else {
-      for (const item of drag.path.splice(index + 1)) restoreCell(item.dateKey, item.start);
-    }
-  }
-
-  function cellsFrom(from: { dateKey: string; start: string }, to: { dateKey: string; start: string }) {
-    const dayKeys = days.map((day) => brusselsDateKey(day));
-    const dayDelta = dayKeys.indexOf(to.dateKey) - dayKeys.indexOf(from.dateKey);
-    const startDelta = SLOT_STARTS.indexOf(to.start) - SLOT_STARTS.indexOf(from.start);
-    const steps = Math.max(Math.abs(dayDelta), Math.abs(startDelta));
-    const cells: { dateKey: string; start: string }[] = [];
-    for (let step = 1; step <= steps; step += 1) {
-      const dateKey = dayKeys[dayKeys.indexOf(from.dateKey) + Math.round((step * dayDelta) / steps)];
-      const start = SLOT_STARTS[SLOT_STARTS.indexOf(from.start) + Math.round((step * startDelta) / steps)];
-      const previous = cells[cells.length - 1];
-      if (dateKey && start && (!previous || previous.dateKey !== dateKey || previous.start !== start)) {
-        cells.push({ dateKey, start });
-      }
-    }
-    return cells;
-  }
-
-  function startDrag(event: ReactPointerEvent<HTMLDivElement>) {
-    if (saving || event.button !== 0) return;
-    const cell = (event.target as HTMLElement).closest("[data-slot]");
-    if (!cell) return;
-    const dateKey = cell.getAttribute("data-date");
-    const start = cell.getAttribute("data-start");
-    if (!dateKey || !start) return;
-    event.preventDefault();
-    gridRef.current?.setPointerCapture(event.pointerId);
-    dragRef.current = {
-      mode: openStarts(instructor, dateKey).has(start) ? "off" : "on",
-      original: new Map(),
-      dirty: new Map(),
-      path: [],
-    };
-    paint(dateKey, start);
-    publishDrag();
-  }
-
-  function moveDrag(event: ReactPointerEvent<HTMLDivElement>) {
-    const drag = dragRef.current;
-    if (!drag) return;
-    const cell = document.elementFromPoint(event.clientX, event.clientY)?.closest("[data-slot]");
-    const dateKey = cell?.getAttribute("data-date");
-    const start = cell?.getAttribute("data-start");
-    const last = drag.path[drag.path.length - 1];
-    if (!dateKey || !start || !last) return;
-    for (const step of cellsFrom(last, { dateKey, start })) paint(step.dateKey, step.start);
-    publishDrag();
-  }
-
-  async function finishDrag() {
-    const drag = dragRef.current;
-    dragRef.current = null;
-    if (!drag || drag.dirty.size === 0) return;
-    for (const [dateKey, slots] of drag.dirty) {
-      await onSaveDay(dateKey, SLOT_STARTS.filter((start) => slots.has(start)));
-    }
-    setPreview(null);
-  }
 
   return (
     <div className="overflow-hidden rounded-2xl border border-black/10 bg-white shadow-sm">
@@ -666,43 +658,37 @@ function AvailabilityGrid({
             <div className="border-b border-[#f4f4f5]" />
             {days.map((day) => {
               const dateKey = brusselsDateKey(day);
-              const open = startsFor(dateKey);
-              const allOn = SLOT_STARTS.every((start) => open.has(start));
               const today = dateKey === todayKey;
               return (
-                <button
-                  key={dateKey}
-                  type="button"
-                  disabled={saving}
-                  onClick={() => onSaveDay(dateKey, allOn ? [] : [...SLOT_STARTS])}
-                  className={`border-b border-l border-[#f4f4f5] px-2 py-3 text-center ${today ? "bg-[#fff7f7]" : "bg-white"}`}
-                >
+                <div key={dateKey} className={`border-b border-l border-[#f4f4f5] px-2 py-3 text-center ${today ? "bg-[#fff7f7]" : "bg-white"}`}>
                   <span className="block text-[11px] font-medium uppercase tracking-wide text-[#a1a1aa]">{DAY_LABEL.format(day)}</span>
                   <span className={`mx-auto mt-1 flex h-8 w-8 items-center justify-center rounded-full text-sm font-semibold ${today ? "bg-[#ed1c24] text-white" : "text-[#111827]"}`}>
                     {DAY_NUMBER.format(day)}
                   </span>
-                </button>
+                </div>
               );
             })}
           </div>
-          <div
-            ref={gridRef}
-            className="grid touch-none select-none grid-cols-[3.25rem_repeat(7,minmax(0,1fr))]"
-            onPointerDown={startDrag}
-            onPointerMove={moveDrag}
-            onPointerUp={finishDrag}
-            onPointerCancel={finishDrag}
-          >
+          <div className="grid select-none grid-cols-[3.25rem_repeat(7,minmax(0,1fr))]">
             <TimeGutter />
             {days.map((day) => {
               const dateKey = brusselsDateKey(day);
               return (
                 <TimeColumn
                   key={dateKey}
-                  open={startsFor(dateKey)}
+                  blocks={dayBlocks(instructor, dateKey)}
                   dateKey={dateKey}
                   label={DAY_LABEL.format(day)}
                   today={dateKey === todayKey}
+                  onCreate={(block) => {
+                    onError(null);
+                    void onSaveDay(dateKey, sortBlocks([...dayBlocks(instructor, dateKey), block]));
+                  }}
+                  onReject={onError}
+                  onRemove={(block) => {
+                    onError(null);
+                    void onSaveDay(dateKey, dayBlocks(instructor, dateKey).filter((item) => item.start !== block.start || item.end !== block.end));
+                  }}
                 />
               );
             })}

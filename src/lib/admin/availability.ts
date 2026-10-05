@@ -2,6 +2,7 @@ import { Prisma } from "@prisma/client";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { inviteInstructor } from "@/lib/supabase/accounts";
+import { coalesceLegacyBlocks, sameBlocks, type TimeBlock } from "@/lib/availabilityBlocks";
 import {
   availabilityExceptionSchema,
   availabilityRuleSchema,
@@ -121,16 +122,15 @@ export async function setDaySlots(input: unknown) {
   const rules = await prisma.availabilityRule.findMany({
     where: { instructorId: parsed.data.instructorId, weekday },
   });
-  const covered = new Set(rules.map((rule) => rule.startTime.slice(0, 5)));
-  const wanted = new Set(parsed.data.slots.map((slot) => slot.startTime));
-  const overrides = [
-    ...parsed.data.slots
-      .filter((slot) => !covered.has(slot.startTime))
-      .map((slot) => ({ ...slot, isAvailable: true })),
-    ...rules
-      .filter((rule) => !wanted.has(rule.startTime.slice(0, 5)))
-      .map((rule) => ({ startTime: rule.startTime.slice(0, 5), endTime: rule.endTime.slice(0, 5), isAvailable: false })),
-  ];
+  const weeklyBlocks = coalesceLegacyBlocks(rules.map((rule) => ({ start: rule.startTime, end: rule.endTime })));
+  const wanted: TimeBlock[] = parsed.data.slots.map((slot) => ({ start: slot.startTime, end: slot.endTime }));
+  const followsWeek = sameBlocks(weeklyBlocks, wanted);
+  const overrides = followsWeek
+    ? []
+    : [
+        ...rules.map((rule) => ({ startTime: rule.startTime.slice(0, 5), endTime: rule.endTime.slice(0, 5), isAvailable: false })),
+        ...wanted.map((block) => ({ startTime: block.start, endTime: block.end, isAvailable: true })),
+      ];
   const created = await prisma.$transaction(async (tx) => {
     await tx.availabilityException.deleteMany({ where: { instructorId: parsed.data.instructorId, date } });
     return Promise.all(
