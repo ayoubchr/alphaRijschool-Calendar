@@ -1,7 +1,7 @@
 import { Prisma } from "@prisma/client";
 import { auth } from "@/lib/auth";
 import { canCancelWithRefund } from "@/lib/cancellation";
-import { hoursBetween, isTheoryPackage, lessonInstructorName, persistedInstructorId } from "@/lib/lessonBlocks";
+import { hoursBetween, isExamPackage, isTheoryPackage, lessonInstructorName, persistedInstructorId } from "@/lib/lessonBlocks";
 import { formatLessonMoment } from "@/lib/email";
 import { notifyStaffOfLessons } from "@/lib/notifications";
 import { prisma } from "@/lib/prisma";
@@ -62,6 +62,7 @@ export async function cancelLesson(id: string) {
   await notifyStaffOfLessons({
     title: "Les geannuleerd",
     intro: `${studentName}: ${formatLessonMoment(lesson.startAt, lesson.endAt)} is geannuleerd.`,
+    dossierId: lesson.dossierId,
     lessons: [{ startAt: lesson.startAt, endAt: lesson.endAt, instructorName: lessonInstructorName(lesson.instructor), instructorId: lesson.instructorId, studentName }],
   });
 
@@ -94,6 +95,7 @@ export async function rescheduleLesson(id: string, startAt: string, endAt: strin
     endAt: nextEnd,
     durationMinutes: (lesson.endAt.getTime() - lesson.startAt.getTime()) / 60_000,
     theory,
+    exam: isExamPackage(lesson.package),
     ignoreLessonId: lesson.id,
   });
   if (validationError) return { ok: false as const, status: validationError.status, error: validationError.message };
@@ -108,6 +110,7 @@ export async function rescheduleLesson(id: string, startAt: string, endAt: strin
     await notifyStaffOfLessons({
       title: "Les verplaatst",
       intro: `${studentName} is verplaatst van ${formatLessonMoment(lesson.startAt, lesson.endAt)} naar ${formatLessonMoment(nextStart, nextEnd)}.`,
+      dossierId: lesson.dossierId,
       lessons: [{ startAt: nextStart, endAt: nextEnd, instructorName: lessonInstructorName(updated.instructor), instructorId: updated.instructorId, studentName }],
     });
     return { ok: true as const, lesson: updated };

@@ -1,10 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { DossierDetailsModal } from "@/components/admin/DossierDetailsModal";
+import type { DossierDetails } from "@/lib/admin/dossierDetails";
 import { StatusBadge } from "../StatusBadge";
 import { LessonCalendar, type Slot } from "@/components/LessonCalendar";
 import { addBrusselsDays, brusselsDateKey, brusselsMidnight, brusselsYmd, startOfBrusselsWeek } from "@/lib/brusselsWeek";
-import { THEORY_LABEL } from "@/lib/lessonBlocks";
+import { isExamPackage, THEORY_LABEL } from "@/lib/lessonBlocks";
 import { cancelAgendaLesson, moveAgendaLesson } from "./actions";
 
 interface AgendaTheoryDay {
@@ -23,8 +25,10 @@ interface AgendaLesson {
   instructor: { name: string };
   instructorId: string;
   packageId: string;
+  packageName: string;
   transmission: "AUTOMAAT" | "MANUEEL";
   canChange: boolean;
+  details?: DossierDetails;
 }
 
 function formatSlot(startAt: string, endAt: string) {
@@ -138,6 +142,7 @@ export function AgendaView({
   const [notices, setNotices] = useState<Record<string, string>>({});
   const [pendingId, setPendingId] = useState<string | null>(null);
   const [moving, setMoving] = useState<AgendaLesson | null>(null);
+  const [details, setDetails] = useState<DossierDetails | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   async function handleCancel(id: string) {
@@ -185,7 +190,7 @@ export function AgendaView({
       <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
         <div>
           <h1 className="text-2xl font-extrabold text-[#111827]">Agenda</h1>
-          <p className="mt-1 text-sm text-[#58595b]">Maandoverzicht van lessen en theoriedagen. Kies een dag om te verplaatsen of te annuleren.</p>
+          <p className="mt-1 text-sm text-[#58595b]">Maandoverzicht van lessen en theoriedagen. Kies een dag, en open Gegevens voor alles wat de leerling invulde.</p>
         </div>
         <div className="flex flex-wrap gap-3">
           {isAdmin && instructors.length > 0 && (
@@ -278,7 +283,7 @@ export function AgendaView({
                   {students.length > 0 && (
                     <ul className="mt-2 divide-y divide-black/5 rounded-[10px] border border-black/5">
                       {students.map((lesson) => (
-                        <LessonRow key={lesson.id} lesson={lesson} notice={notices[lesson.id]} pending={pendingId === lesson.id} onMove={() => setMoving(lesson)} onCancel={() => handleCancel(lesson.id)} />
+                        <LessonRow key={lesson.id} lesson={lesson} notice={notices[lesson.id]} pending={pendingId === lesson.id} onMove={() => setMoving(lesson)} onCancel={() => handleCancel(lesson.id)} onDetails={lesson.details ? () => setDetails(lesson.details!) : undefined} />
                       ))}
                     </ul>
                   )}
@@ -288,13 +293,14 @@ export function AgendaView({
             {dayLessons.length > 0 && (
               <ul className="divide-y divide-black/5">
                 {dayLessons.map((lesson) => (
-                  <LessonRow key={lesson.id} lesson={lesson} notice={notices[lesson.id]} pending={pendingId === lesson.id} onMove={() => setMoving(lesson)} onCancel={() => handleCancel(lesson.id)} />
+                  <LessonRow key={lesson.id} lesson={lesson} notice={notices[lesson.id]} pending={pendingId === lesson.id} onMove={() => setMoving(lesson)} onCancel={() => handleCancel(lesson.id)} onDetails={lesson.details ? () => setDetails(lesson.details!) : undefined} />
                 ))}
               </ul>
             )}
           </div>
         )}
       </div>
+      {details && <DossierDetailsModal dossier={details} onClose={() => setDetails(null)} />}
       {moving && (
         <AgendaSlotPicker
           lesson={moving}
@@ -316,22 +322,29 @@ function LessonRow({
   pending,
   onMove,
   onCancel,
+  onDetails,
 }: {
   lesson: AgendaLesson;
   notice?: string;
   pending: boolean;
   onMove: () => void;
   onCancel: () => void;
+  onDetails?: () => void;
 }) {
   return (
     <li className="flex flex-wrap items-center justify-between gap-3 px-3 py-3 text-sm">
       <div>
-        <p className="font-semibold text-[#111827]">{lesson.dossier.firstName} {lesson.dossier.lastName}</p>
+        {onDetails ? (
+          <button type="button" onClick={onDetails} className="font-semibold text-[#111827] underline-offset-2 hover:underline">{lesson.dossier.firstName} {lesson.dossier.lastName}</button>
+        ) : (
+          <p className="font-semibold text-[#111827]">{lesson.dossier.firstName} {lesson.dossier.lastName}</p>
+        )}
         <p className="text-[#58595b]">{formatSlot(lesson.startAt, lesson.endAt)}{lesson.instructor.name === THEORY_LABEL ? "" : ` · ${lesson.instructor.name}`}</p>
         {notice && <p className="text-xs text-[#58595b]">{notice}</p>}
       </div>
       <div className="flex items-center gap-2">
         <StatusBadge status={lesson.status} />
+        {onDetails && <button type="button" onClick={onDetails} className="rounded-[10px] border border-black/10 px-3 py-1.5 text-xs font-semibold">Gegevens</button>}
         {lesson.canChange && (
           <>
             <button type="button" onClick={onMove} className="rounded-[10px] border border-black/10 px-3 py-1.5 text-xs font-semibold">Verplaatsen</button>
@@ -386,6 +399,7 @@ function AgendaSlotPicker({
         canGoPrevious
         canGoNext
         loading={loading}
+        hint={isExamPackage({ name: lesson.packageName }) ? "Klik een groen blok. Dat is het hele examen." : undefined}
         onWeekChange={setWeekStart}
         onSelectSlot={(slot) => setSelected(slot as Slot & { instructorId: string; instructorName: string })}
       />

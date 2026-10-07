@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { sendLessonsChangedEmail } from "@/lib/email";
+import { formatLessonMoment, sendLessonsChangedEmail } from "@/lib/email";
 import { EMAIL } from "@/lib/site";
 
 export async function staffRecipients(instructorIds: (string | null)[]) {
@@ -16,8 +16,21 @@ export async function staffRecipients(instructorIds: (string | null)[]) {
 export async function notifyStaffOfLessons(params: {
   title: string;
   intro: string;
+  dossierId?: string;
   lessons: { startAt: Date; endAt: Date; instructorName: string; instructorId: string | null; studentName: string }[];
 }) {
+  const lines = params.lessons.map((lesson) => `${lesson.studentName}: ${formatLessonMoment(lesson.startAt, lesson.endAt)} met ${lesson.instructorName}`);
+  await prisma.staffNotification.create({
+    data: {
+      title: params.title,
+      body: [params.intro, ...lines].join("\n").slice(0, 500),
+      href: params.dossierId ? `/admin/dossiers?dossier=${params.dossierId}` : "/admin/agenda",
+    },
+  });
   const to = await staffRecipients(params.lessons.map((lesson) => lesson.instructorId));
-  await sendLessonsChangedEmail({ to, title: params.title, intro: params.intro, lessons: params.lessons });
+  try {
+    await sendLessonsChangedEmail({ to, title: params.title, intro: params.intro, lessons: params.lessons });
+  } catch (error) {
+    console.error("Mail naar beheer mislukt:", error);
+  }
 }

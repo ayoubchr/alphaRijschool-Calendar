@@ -15,6 +15,7 @@ export const availabilityRuleSchema = z
 export type AvailabilityRuleInput = z.infer<typeof availabilityRuleSchema>;
 
 const time = z.string().regex(/^\d{2}:\d{2}$/);
+const availabilityKind = z.enum(["LESSON", "EXAM"]).default("LESSON");
 
 export const availabilityRuleUpdateSchema = z
   .object({
@@ -46,7 +47,7 @@ export const daySlotsSchema = z.object({
   slots: z
     .array(
       z
-        .object({ startTime: time, endTime: time })
+        .object({ startTime: time, endTime: time, kind: availabilityKind })
         .refine((slot) => slot.startTime < slot.endTime, { path: ["endTime"] })
     )
     .max(56),
@@ -63,7 +64,7 @@ export const weeklySlotsSchema = z.object({
   slots: z
     .array(
       z
-        .object({ startTime: time, endTime: time })
+        .object({ startTime: time, endTime: time, kind: availabilityKind })
         .refine((slot) => slot.startTime < slot.endTime, { path: ["endTime"] })
     )
     .max(56),

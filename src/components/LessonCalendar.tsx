@@ -23,6 +23,7 @@ interface LessonCalendarProps {
   canGoPrevious: boolean;
   canGoNext: boolean;
   loading?: boolean;
+  hint?: string;
   onWeekChange: (weekStart: Date) => void;
   onSelectSlot: (slot: Slot) => void;
 }
@@ -48,6 +49,7 @@ export function LessonCalendar({
   canGoPrevious,
   canGoNext,
   loading = false,
+  hint = "Klik een groen blok. Dat is de hele les van 2 uur.",
   onWeekChange,
   onSelectSlot,
 }: LessonCalendarProps) {
@@ -107,7 +109,7 @@ export function LessonCalendar({
         freeByDay={freeByDay}
         blocksByDay={blocksByDay}
         highlight={selectedSlot}
-        hint="Klik een groen blok. Dat is de hele les van 2 uur."
+        hint={hint}
         onPickFree={pick}
       />
       {choosing && (

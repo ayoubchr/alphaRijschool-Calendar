@@ -2,7 +2,7 @@ import { Prisma } from "@prisma/client";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { inviteInstructor } from "@/lib/supabase/accounts";
-import { coalesceLegacyBlocks, sameBlocks, type TimeBlock } from "@/lib/availabilityBlocks";
+import { resolveDayBlocks, sameBlocks, type TimeBlock } from "@/lib/availabilityBlocks";
 import {
   availabilityExceptionSchema,
   availabilityRuleSchema,
@@ -40,6 +40,7 @@ function serializeException(exception: {
   startTime: string;
   endTime: string;
   isAvailable: boolean;
+  kind: "LESSON" | "EXAM";
 }) {
   return {
     id: exception.id,
@@ -48,6 +49,7 @@ function serializeException(exception: {
     startTime: exception.startTime.slice(0, 5),
     endTime: exception.endTime.slice(0, 5),
     isAvailable: exception.isAvailable,
+    kind: exception.kind,
   };
 }
 
@@ -122,14 +124,17 @@ export async function setDaySlots(input: unknown) {
   const rules = await prisma.availabilityRule.findMany({
     where: { instructorId: parsed.data.instructorId, weekday },
   });
-  const weeklyBlocks = coalesceLegacyBlocks(rules.map((rule) => ({ start: rule.startTime, end: rule.endTime })));
-  const wanted: TimeBlock[] = parsed.data.slots.map((slot) => ({ start: slot.startTime, end: slot.endTime }));
-  const followsWeek = sameBlocks(weeklyBlocks, wanted);
+  const visibleWeek = resolveDayBlocks(
+    rules.map((rule) => ({ start: rule.startTime, end: rule.endTime, kind: rule.kind })),
+    [],
+  );
+  const wanted: TimeBlock[] = parsed.data.slots.map((slot) => ({ start: slot.startTime, end: slot.endTime, kind: slot.kind }));
+  const followsWeek = sameBlocks(visibleWeek, wanted);
   const overrides = followsWeek
     ? []
     : [
-        ...rules.map((rule) => ({ startTime: rule.startTime.slice(0, 5), endTime: rule.endTime.slice(0, 5), isAvailable: false })),
-        ...wanted.map((block) => ({ startTime: block.start, endTime: block.end, isAvailable: true })),
+        ...rules.map((rule) => ({ startTime: rule.startTime.slice(0, 5), endTime: rule.endTime.slice(0, 5), kind: rule.kind, isAvailable: false })),
+        ...wanted.map((block) => ({ startTime: block.start, endTime: block.end, kind: block.kind, isAvailable: true })),
       ];
   const created = await prisma.$transaction(async (tx) => {
     await tx.availabilityException.deleteMany({ where: { instructorId: parsed.data.instructorId, date } });
@@ -142,6 +147,7 @@ export async function setDaySlots(input: unknown) {
             startTime: slot.startTime,
             endTime: slot.endTime,
             isAvailable: slot.isAvailable,
+            kind: slot.kind,
           },
         })
       )
@@ -171,6 +177,7 @@ export async function setWeeklySlots(input: unknown) {
               weekday,
               startTime: slot.startTime,
               endTime: slot.endTime,
+              kind: slot.kind,
             },
           })
         )
@@ -194,6 +201,7 @@ export async function setWeeklySlots(input: unknown) {
       weekday: rule.weekday,
       startTime: rule.startTime.slice(0, 5),
       endTime: rule.endTime.slice(0, 5),
+      kind: rule.kind,
     })),
     exceptions: exceptions.map(serializeException),
   };

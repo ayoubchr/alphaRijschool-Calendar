@@ -1,7 +1,10 @@
+export type AvailabilityKind = "LESSON" | "EXAM";
+
 export interface AvailabilityRule {
   weekday: number;
   startTime: string;
   endTime: string;
+  kind?: AvailabilityKind;
 }
 
 export interface AvailabilityException {
@@ -9,6 +12,7 @@ export interface AvailabilityException {
   startTime: string;
   endTime: string;
   isAvailable: boolean;
+  kind?: AvailabilityKind;
 }
 
 export interface BookedLesson {
@@ -122,8 +126,16 @@ export function computeAvailableSlots(params: {
   rangeEnd: Date;
   lessonDurationMinutes: number;
   weekdayFilter?: number[];
+  /** Exam packages only see exam blocks, and each block is booked as a whole. */
+  blockKind?: AvailabilityKind;
 }): Slot[] {
-  const { rules, exceptions, bookedLessons, rangeStart, rangeEnd, lessonDurationMinutes, weekdayFilter } = params;
+  const { bookedLessons, rangeStart, rangeEnd, lessonDurationMinutes, weekdayFilter } = params;
+  const blockKind = params.blockKind ?? "LESSON";
+  const rules = params.rules.filter((rule) => (rule.kind ?? "LESSON") === blockKind);
+  const exceptions = params.exceptions.filter((exception) => {
+    const allDayOff = !exception.isAvailable && parseTimeToMinutes(exception.startTime) === 0 && parseTimeToMinutes(exception.endTime) >= 1439;
+    return allDayOff || (exception.kind ?? "LESSON") === blockKind;
+  });
   const slots: Slot[] = [];
 
   const startDay = brusselsCalendarDay(rangeStart);
@@ -164,14 +176,16 @@ export function computeAvailableSlots(params: {
       const windowEndMin = parseTimeToMinutes(window.end);
       // Each saved block is one lesson start (08:15–10:15 stays 08:15). A longer
       // block still steps per lesson, not per quarter, so neighbours are not invented.
-      for (
-        let slotStartMin = windowStartMin;
-        slotStartMin + lessonDurationMinutes <= windowEndMin;
-        slotStartMin += lessonDurationMinutes
-      ) {
+      const starts = blockKind === "EXAM" ? [windowStartMin] : Array.from(
+        { length: Math.floor((windowEndMin - windowStartMin) / lessonDurationMinutes) },
+        (_, index) => windowStartMin + index * lessonDurationMinutes,
+      );
+      for (const slotStartMin of starts) {
         if (slotStartMin % SLOT_STEP_MINUTES !== 0) continue;
+        const slotLength = blockKind === "EXAM" ? windowEndMin - windowStartMin : lessonDurationMinutes;
+        if (blockKind !== "EXAM" && slotStartMin + slotLength > windowEndMin) continue;
         const slotStart = brusselsWallTimeToUtc(year, month, day, slotStartMin);
-        const slotEnd = brusselsWallTimeToUtc(year, month, day, slotStartMin + lessonDurationMinutes);
+        const slotEnd = brusselsWallTimeToUtc(year, month, day, slotStartMin + slotLength);
         if (slotStart < rangeStart || slotEnd > rangeEnd) continue;
 
         const blockedByException = dayExceptions.some(
@@ -190,7 +204,8 @@ export function computeAvailableSlots(params: {
     }
   }
 
-  return collapseQuarterStarts(slots, lessonDurationMinutes).filter(
+  const offered = blockKind === "EXAM" ? slots : collapseQuarterStarts(slots, lessonDurationMinutes);
+  return offered.filter(
     (slot) => !bookedLessons.some((lesson) => overlaps(slot.startAt, slot.endAt, lesson.startAt, lesson.endAt))
   );
 }

@@ -26,6 +26,7 @@ export default async function AdminAvailabilityPage() {
       weekday: rule.weekday,
       startTime: rule.startTime.slice(0, 5),
       endTime: rule.endTime.slice(0, 5),
+      kind: rule.kind,
     })),
     availabilityExceptions: instructor.availabilityExceptions.map((exception) => ({
       id: exception.id,
@@ -33,6 +34,7 @@ export default async function AdminAvailabilityPage() {
       startTime: exception.startTime.slice(0, 5),
       endTime: exception.endTime.slice(0, 5),
       isAvailable: exception.isAvailable,
+      kind: exception.kind,
     })),
   }));
 

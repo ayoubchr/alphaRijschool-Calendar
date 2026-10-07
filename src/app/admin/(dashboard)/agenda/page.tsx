@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { canCancelWithRefund } from "@/lib/cancellation";
+import { serializeDossierDetails, type DossierDetails } from "@/lib/admin/dossierDetails";
 import { lessonInstructorName, THEORY_INSTRUCTOR_ID } from "@/lib/lessonBlocks";
 import { AgendaView } from "./AgendaView";
 
@@ -22,9 +23,23 @@ export default async function AdminAgendaPage() {
       status: { in: ["PLANNED", "CONFIRMED"] },
       ...(role === "INSTRUCTOR" ? { instructorId } : {}),
     },
-    include: { dossier: true, instructor: true },
+    include: {
+      dossier: { include: { package: true, payments: { orderBy: { createdAt: "desc" } }, lessons: { include: { instructor: true }, orderBy: { startAt: "asc" } } } },
+      instructor: true,
+      package: { select: { name: true } },
+    },
     orderBy: { startAt: "asc" },
   });
+
+  const detailsByDossier = new Map<string, DossierDetails>();
+  function detailsFor(dossierId: string, dossier: Parameters<typeof serializeDossierDetails>[0]) {
+    if (role !== "ADMIN") return undefined;
+    const existing = detailsByDossier.get(dossierId);
+    if (existing) return existing;
+    const details = serializeDossierDetails(dossier);
+    detailsByDossier.set(dossierId, details);
+    return details;
+  }
 
   return (
     <AgendaView
@@ -45,8 +60,10 @@ export default async function AdminAgendaPage() {
         instructor: { name: lessonInstructorName(lesson.instructor) },
         instructorId: lesson.instructorId ?? THEORY_INSTRUCTOR_ID,
         packageId: lesson.packageId,
+        packageName: lesson.package.name,
         transmission: lesson.dossier.transmission === "MANUEEL" ? "MANUEEL" : "AUTOMAAT",
         canChange: canCancelWithRefund(lesson.startAt),
+        details: detailsFor(lesson.dossierId, lesson.dossier),
       }))}
     />
   );

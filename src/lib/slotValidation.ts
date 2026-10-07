@@ -26,10 +26,12 @@ export async function validateRequestedSlot(params: {
   endAt: Date;
   durationMinutes: number;
   theory?: boolean;
+  /** Practical exam slots keep the length of the exam block, not a fixed 2 hours. */
+  exam?: boolean;
   /** The lesson being moved. Its current time must not block the new start. */
   ignoreLessonId?: string;
 }): Promise<SlotValidationError | null> {
-  const { instructorId, transmission, startAt, endAt, durationMinutes, theory, ignoreLessonId } = params;
+  const { instructorId, transmission, startAt, endAt, durationMinutes, theory, exam, ignoreLessonId } = params;
 
   if (theory) return validateTheorySlot(startAt, endAt);
 
@@ -38,7 +40,7 @@ export async function validateRequestedSlot(params: {
   }
 
   const durationMs = endAt.getTime() - startAt.getTime();
-  if (durationMs !== durationMinutes * 60_000) {
+  if (!exam && durationMs !== durationMinutes * 60_000) {
     return { status: 400, message: "Ongeldige lesduur." };
   }
 
@@ -73,11 +75,13 @@ export async function validateRequestedSlot(params: {
       startTime: e.startTime,
       endTime: e.endTime,
       isAvailable: e.isAvailable,
+      kind: e.kind,
     })),
     bookedLessons: bookedLessons.map((l) => ({ startAt: l.startAt, endAt: l.endAt })),
     rangeStart,
     rangeEnd,
     lessonDurationMinutes: durationMinutes,
+    blockKind: exam ? "EXAM" : "LESSON",
   });
 
   const isRealSlot = slots.some((s) => s.startAt.getTime() === startAt.getTime() && s.endAt.getTime() === endAt.getTime());

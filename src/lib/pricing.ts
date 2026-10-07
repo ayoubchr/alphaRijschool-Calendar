@@ -52,11 +52,14 @@ export function depositBreakdown(pkg: PackageLike, transmission: Transmission): 
   };
 }
 
-/** Mollie description: the same split the student sees, so the books match. */
-export function paymentDescription(pkg: PackageLike, transmission: Transmission): string {
+/** Mollie shows this text in the payments list, so the student name comes first. */
+export function paymentDescription(pkg: PackageLike, transmission: Transmission, studentName?: string): string {
   const payment = depositBreakdown(pkg, transmission);
   const name = pkg.name ? ` (${pkg.name})` : "";
-  return `${payment.lessonLabel} ${formatEuro(payment.lessonAmount)} + inschrijving ${formatEuro(payment.registrationFee)}${name}`;
+  const summary = `${payment.lessonLabel} ${formatEuro(payment.lessonAmount)} + inschrijving ${formatEuro(payment.registrationFee)}${name}`;
+  const who = studentName?.trim();
+  const description = who ? `${who} — ${summary}` : summary;
+  return description.slice(0, 255);
 }
 
 export function depositAmount(pkg: PackageLike, transmission: Transmission): number {

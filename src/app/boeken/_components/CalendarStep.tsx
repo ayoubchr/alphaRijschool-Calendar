@@ -24,6 +24,7 @@ interface CalendarStepProps {
   lessonCount: number;
   blockHours?: number;
   exact?: boolean;
+  exam?: boolean;
   onConfirm: (slots: BookingSlot[]) => void;
   onBack: () => void;
 }
@@ -54,7 +55,7 @@ function groupByStart(slots: BookingSlot[]) {
   return grouped;
 }
 
-export function CalendarStep({ packageId, transmission, lessonCount, blockHours = 2, exact = false, onConfirm, onBack }: CalendarStepProps) {
+export function CalendarStep({ packageId, transmission, lessonCount, blockHours = 2, exact = false, exam = false, onConfirm, onBack }: CalendarStepProps) {
   const [weekStart, setWeekStart] = useState(() => startOfBrusselsWeek(new Date()));
   const [slots, setSlots] = useState<BookingSlot[]>([]);
   const [selected, setSelected] = useState<BookingSlot[]>([]);
@@ -162,11 +163,13 @@ export function CalendarStep({ packageId, transmission, lessonCount, blockHours 
 
   return (
     <div>
-      <h1 className="mb-2 text-2xl font-extrabold text-[#111827]">Kies je lesmomenten</h1>
+      <h1 className="mb-2 text-2xl font-extrabold text-[#111827]">{exam ? "Kies je examenmoment" : "Kies je lesmomenten"}</h1>
       <p className="mb-5 text-sm text-[#58595b]">
-        {exact
-          ? `Kies ${lessonCount} dagen van ${blockHours} uur.`
-          : `Kies tot ${lessonCount} moment${lessonCount === 1 ? "" : "en"} van ${blockHours} uur. Wat je nu niet inplant, plan je later in je dossier.`}
+        {exam
+          ? "Kies het examenblok dat bij jou past. Je ziet alleen de tijden die voor het praktijkexamen openstaan."
+          : exact
+            ? `Kies ${lessonCount} dagen van ${blockHours} uur.`
+            : `Kies tot ${lessonCount} moment${lessonCount === 1 ? "" : "en"} van ${blockHours} uur. Wat je nu niet inplant, plan je later in je dossier.`}
         {" "}Geselecteerd: {selected.length}/{lessonCount}.
       </p>
       {error && <p className="mb-3 text-sm text-[#ed1c24]">{error}</p>}
@@ -182,7 +185,7 @@ export function CalendarStep({ packageId, transmission, lessonCount, blockHours 
         onNext={() => setWeekStart(addBrusselsDays(weekStart, 7))}
         freeByDay={freeByDay}
         blocksByDay={blocksByDay}
-        hint={exact ? "Klik een groene dag. Die duurt 6 uur." : "Klik een groen blok. Dat is de hele les, bijvoorbeeld van 08:00 tot 10:00."}
+        hint={exam ? "Klik een groen blok. Dat is het hele examen." : exact ? "Klik een groene dag. Die duurt 6 uur." : "Klik een groen blok. Dat is de hele les, bijvoorbeeld van 08:00 tot 10:00."}
         onPickFree={(startAt) => {
           const options = openByTime.get(startAt);
           if (options) openInstructorChoice(options);

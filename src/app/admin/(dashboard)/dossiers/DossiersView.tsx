@@ -1,6 +1,8 @@
 "use client";
 
 import { type FormEvent, useEffect, useState } from "react";
+import { DossierDetailsModal } from "@/components/admin/DossierDetailsModal";
+import type { DossierDetails } from "@/lib/admin/dossierDetails";
 import { blockHoursForPackage, isTheoryPackage } from "@/lib/lessonBlocks";
 import { deleteDossier, updateDossier } from "./actions";
 import { DossierPlanning } from "./DossierPlanning";
@@ -30,12 +32,14 @@ export interface DossierRow {
   lessonCount: number;
   finished: boolean;
   lessons: DossierLesson[];
+  details: DossierDetails;
 }
 
-export function DossiersView({ dossiers: initial }: { dossiers: DossierRow[] }) {
+export function DossiersView({ dossiers: initial, openId = null }: { dossiers: DossierRow[]; openId?: string | null }) {
   const [dossiers, setDossiers] = useState(initial);
   const [tab, setTab] = useState<"active" | "finished">("active");
   const [editing, setEditing] = useState<DossierRow | null>(null);
+  const [viewing, setViewing] = useState<DossierDetails | null>(null);
   const [planningId, setPlanningId] = useState<string | null>(null);
   const [removing, setRemoving] = useState<DossierRow | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -44,6 +48,12 @@ export function DossiersView({ dossiers: initial }: { dossiers: DossierRow[] }) 
   useEffect(() => {
     setDossiers(initial);
   }, [initial]);
+
+  useEffect(() => {
+    if (!openId) return;
+    const match = initial.find((dossier) => dossier.id === openId);
+    if (match) setViewing(match.details);
+  }, [openId, initial]);
 
   async function save(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -121,6 +131,7 @@ export function DossiersView({ dossiers: initial }: { dossiers: DossierRow[] }) 
                   <p className="text-sm text-[#58595b]">{dossier.email} · {dossier.phone}</p>
                 </div>
                 <div className="flex gap-2">
+                  <button type="button" onClick={() => setViewing(dossier.details)} className="rounded-[10px] border border-black/10 px-3 py-1.5 text-xs font-semibold">Gegevens</button>
                   <button type="button" onClick={() => setPlanningId(dossier.id)} className="rounded-[10px] border border-black/10 px-3 py-1.5 text-xs font-semibold">Planning</button>
                   <button type="button" onClick={() => setEditing(dossier)} className="rounded-[10px] border border-black/10 px-3 py-1.5 text-xs font-semibold">Bewerken</button>
                   <button type="button" onClick={() => setRemoving(dossier)} className="rounded-[10px] border border-black/10 px-3 py-1.5 text-xs font-semibold text-[#ed1c24]">Verwijderen</button>
@@ -130,6 +141,7 @@ export function DossiersView({ dossiers: initial }: { dossiers: DossierRow[] }) 
           </ul>
         )}
       </div>
+      {viewing && <DossierDetailsModal dossier={viewing} onClose={() => setViewing(null)} />}
       {planningId && dossiers.find((item) => item.id === planningId) && (
         <DossierPlanning dossier={dossiers.find((item) => item.id === planningId)!} onClose={() => setPlanningId(null)} />
       )}

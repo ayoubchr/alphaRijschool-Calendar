@@ -1,7 +1,7 @@
 "use client";
 
 import { type FormEvent, type PointerEvent as ReactPointerEvent, useRef, useState } from "react";
-import { blocksOverlap, coalesceLegacyBlocks, minutesOf, resolveDayBlocks, sameBlocks, timeFromMinutes, type TimeBlock } from "@/lib/availabilityBlocks";
+import { blocksOverlap, minutesOf, resolveDayBlocks, sameBlocks, timeFromMinutes, type AvailabilityKind, type TimeBlock } from "@/lib/availabilityBlocks";
 import { addBrusselsDays, brusselsDateKey, startOfBrusselsWeek } from "@/lib/brusselsWeek";
 import { addInstructor, deleteInstructor, saveDaySlots, saveWeeklySlots } from "./actions";
 
@@ -10,8 +10,8 @@ export interface AvailabilityInstructor {
   name: string;
   transmission: "AUTOMAAT" | "MANUEEL" | "BOTH";
   active: boolean;
-  availabilityRules: { id: string; weekday: number; startTime: string; endTime: string }[];
-  availabilityExceptions: { id: string; date: string; startTime: string; endTime: string; isAvailable: boolean }[];
+  availabilityRules: { id: string; weekday: number; startTime: string; endTime: string; kind?: AvailabilityKind }[];
+  availabilityExceptions: { id: string; date: string; startTime: string; endTime: string; isAvailable: boolean; kind?: AvailabilityKind }[];
 }
 
 /** Every quarter from 07:00 through 20:45, so 20u is a full hour like the others. */
@@ -45,17 +45,17 @@ function sortBlocks(blocks: TimeBlock[]) {
 }
 
 function weeklyBlocks(rules: AvailabilityInstructor["availabilityRules"]) {
-  const byDay = new Map<number, TimeBlock[]>();
+  const byDay = new Map<number, { start: string; end: string; kind?: AvailabilityKind }[]>();
   for (const rule of rules) {
     const list = byDay.get(rule.weekday) ?? [];
-    list.push({ start: rule.startTime.slice(0, 5), end: rule.endTime.slice(0, 5) });
+    list.push({ start: rule.startTime.slice(0, 5), end: rule.endTime.slice(0, 5), kind: rule.kind });
     byDay.set(rule.weekday, list);
   }
   const seen = new Set<string>();
   const blocks: TimeBlock[] = [];
   for (const windows of byDay.values()) {
-    for (const block of coalesceLegacyBlocks(windows)) {
-      const key = `${block.start}-${block.end}`;
+    for (const block of resolveDayBlocks(windows, [])) {
+      const key = `${block.kind}-${block.start}-${block.end}`;
       if (seen.has(key)) continue;
       seen.add(key);
       blocks.push(block);
@@ -73,10 +73,10 @@ function dayBlocks(instructor: AvailabilityInstructor, dateKey: string) {
   return resolveDayBlocks(
     instructor.availabilityRules
       .filter((rule) => rule.weekday === weekday)
-      .map((rule) => ({ start: rule.startTime.slice(0, 5), end: rule.endTime.slice(0, 5) })),
+      .map((rule) => ({ start: rule.startTime.slice(0, 5), end: rule.endTime.slice(0, 5), kind: rule.kind })),
     instructor.availabilityExceptions
       .filter((exception) => exception.date === dateKey)
-      .map((exception) => ({ start: exception.startTime.slice(0, 5), end: exception.endTime.slice(0, 5), isAvailable: exception.isAvailable })),
+      .map((exception) => ({ start: exception.startTime.slice(0, 5), end: exception.endTime.slice(0, 5), isAvailable: exception.isAvailable, kind: exception.kind })),
   );
 }
 
@@ -94,6 +94,7 @@ export function AvailabilityView({
   const [saving, setSaving] = useState(false);
   const [weeklyOpen, setWeeklyOpen] = useState(false);
   const [deleting, setDeleting] = useState<AvailabilityInstructor | null>(null);
+  const [paintKind, setPaintKind] = useState<AvailabilityKind>("LESSON");
 
   const selected = instructors.find((instructor) => instructor.id === selectedId) ?? instructors[0] ?? null;
   const days = Array.from({ length: 7 }, (_, index) => addBrusselsDays(weekStart, index));
@@ -122,12 +123,12 @@ export function AvailabilityView({
   async function saveDay(dateKey: string, blocks: TimeBlock[]) {
     if (!selected) return;
     const previous = selected.availabilityExceptions;
-    const slots = blocks.map((block) => ({ startTime: block.start, endTime: block.end }));
+    const slots = blocks.map((block) => ({ startTime: block.start, endTime: block.end, kind: block.kind }));
     const weekday = weekdayOf(dateKey);
     const weekly = resolveDayBlocks(
       selected.availabilityRules
         .filter((rule) => rule.weekday === weekday)
-        .map((rule) => ({ start: rule.startTime.slice(0, 5), end: rule.endTime.slice(0, 5) })),
+        .map((rule) => ({ start: rule.startTime.slice(0, 5), end: rule.endTime.slice(0, 5), kind: rule.kind })),
       [],
     );
     const overrides = sameBlocks(weekly, blocks)
@@ -135,8 +136,8 @@ export function AvailabilityView({
       : [
           ...selected.availabilityRules
             .filter((rule) => rule.weekday === weekday)
-            .map((rule) => ({ id: `${dateKey}-off-${rule.startTime}`, date: dateKey, startTime: rule.startTime.slice(0, 5), endTime: rule.endTime.slice(0, 5), isAvailable: false })),
-          ...blocks.map((block) => ({ id: `${dateKey}-${block.start}`, date: dateKey, startTime: block.start, endTime: block.end, isAvailable: true })),
+            .map((rule) => ({ id: `${dateKey}-off-${rule.kind ?? "LESSON"}-${rule.startTime}`, date: dateKey, startTime: rule.startTime.slice(0, 5), endTime: rule.endTime.slice(0, 5), isAvailable: false, kind: rule.kind ?? "LESSON" })),
+          ...blocks.map((block) => ({ id: `${dateKey}-${block.kind}-${block.start}`, date: dateKey, startTime: block.start, endTime: block.end, isAvailable: true, kind: block.kind })),
         ];
     setError(null);
     setInstructors((prev) =>
@@ -170,7 +171,7 @@ export function AvailabilityView({
     <div>
       <h1 className="mb-2 text-2xl font-extrabold text-[#111827]">Beschikbaarheid</h1>
       <p className="mb-6 max-w-3xl text-sm text-[#58595b]">
-        Sleep over een dag om een blok te tekenen, zo lang als je wil. Een blok ernaast blijft een apart blok. Het kruis haalt dat ene blok weg. Een langer blok wordt voor de leerling opgedeeld in lessen van 2 uur. ‘Elke week’ kopieert de blokken naar elke week.
+        Kies Les of Examen en sleep dan het blok. Lesblokken zijn groen, examenblokken oranje. Een leerling die het praktijkexamen boekt, met of zonder voorbereidingsles, ziet alleen de examenblokken. Het kruis haalt één blok weg.
       </p>
       {error && <p className="mb-4 text-sm text-[#ed1c24]">{error}</p>}
 
@@ -239,12 +240,14 @@ export function AvailabilityView({
           rules={selected.availabilityRules}
           instructors={isAdmin ? instructors.map((instructor) => ({ id: instructor.id, name: instructor.name })) : [{ id: selected.id, name: selected.name }]}
           currentId={selected.id}
+          paintKind={paintKind}
+          onPaintKind={setPaintKind}
           saving={saving}
           onClose={() => setWeeklyOpen(false)}
           onSave={async (instructorIds, weekdays, blocks) => {
             setSaving(true);
             setError(null);
-            const slots = blocks.map((block) => ({ startTime: block.start, endTime: block.end }));
+            const slots = blocks.map((block) => ({ startTime: block.start, endTime: block.end, kind: block.kind }));
             for (const instructorId of instructorIds) {
               const result = await saveWeeklySlots({ instructorId, weekdays, slots });
               if (!result?.ok) {
@@ -297,6 +300,8 @@ export function AvailabilityView({
           weekStart={weekStart}
           saving={saving}
           onWeekChange={setWeekStart}
+          paintKind={paintKind}
+          onPaintKind={setPaintKind}
           onSaveDay={saveDay}
           onError={setError}
         />
@@ -309,7 +314,7 @@ function rowIndex(time: string) {
   return GRID_TIMES.indexOf(time.slice(0, 5));
 }
 
-function blockStyle(block: TimeBlock) {
+function blockStyle(block: { start: string; end: string }) {
   const top = rowIndex(block.start) * QUARTER_PX + 2;
   const height = ((minutesOf(block.end) - minutesOf(block.start)) / 15) * QUARTER_PX - 4;
   return { top, height: Math.max(height, QUARTER_PX - 4) };
@@ -319,13 +324,35 @@ function covers(blocks: TimeBlock[], time: string) {
   return blocks.some((block) => time >= block.start && time < block.end);
 }
 
-function rangeBlock(origin: string, current: string): TimeBlock | null {
+function rangeBlock(origin: string, current: string): { start: string; end: string } | null {
   const from = origin < current ? origin : current;
   const to = origin < current ? current : origin;
   if (from === DAY_END) return null;
   const end = to === DAY_END ? DAY_END : timeFromMinutes(minutesOf(to) + 15);
   if (end <= from) return null;
   return { start: from, end };
+}
+
+function KindSwitch({ kind, onChange }: { kind: AvailabilityKind; onChange: (kind: AvailabilityKind) => void }) {
+  const options: { id: AvailabilityKind; label: string; on: string }[] = [
+    { id: "LESSON", label: "Les", on: "bg-emerald-600 text-white" },
+    { id: "EXAM", label: "Examen", on: "bg-amber-500 text-white" },
+  ];
+  return (
+    <div className="flex rounded-full border border-black/10 bg-white p-1 text-sm font-semibold">
+      {options.map((option) => (
+        <button
+          key={option.id}
+          type="button"
+          aria-pressed={kind === option.id}
+          onClick={() => onChange(option.id)}
+          className={`rounded-full px-4 py-1.5 ${kind === option.id ? option.on : "text-[#58595b]"}`}
+        >
+          {option.label}
+        </button>
+      ))}
+    </div>
+  );
 }
 
 function TimeGutter() {
@@ -354,6 +381,7 @@ function TimeColumn({
   onCreate,
   onReject,
   onRemove,
+  draftKind = "LESSON",
 }: {
   blocks: TimeBlock[];
   dateKey?: string;
@@ -363,12 +391,13 @@ function TimeColumn({
   previewEnd?: string | null;
   onPick?: (time: string) => void;
   onHover?: (time: string | null) => void;
-  onCreate?: (block: TimeBlock) => void;
+  onCreate?: (block: { start: string; end: string }) => void;
+  draftKind?: AvailabilityKind;
   onReject?: (message: string | null) => void;
   onRemove: (block: TimeBlock) => void;
 }) {
   const dragRef = useRef<{ origin: string; current: string } | null>(null);
-  const [draft, setDraft] = useState<TimeBlock | null>(null);
+  const [draft, setDraft] = useState<{ start: string; end: string } | null>(null);
   const preview = draft ?? (anchor && previewEnd && previewEnd > anchor ? { start: anchor, end: previewEnd } : null);
 
   function startDrag(event: ReactPointerEvent<HTMLDivElement>) {
@@ -448,22 +477,24 @@ function TimeColumn({
       })}
       {preview && (
         <div
-          className="pointer-events-none absolute inset-x-1.5 rounded-lg bg-emerald-200/80"
+          className={`pointer-events-none absolute inset-x-1.5 rounded-lg ${draftKind === "EXAM" ? "bg-amber-200/80" : "bg-emerald-200/80"}`}
           style={blockStyle(preview)}
         >
-          <span className="block px-1.5 pt-1 text-[11px] font-semibold leading-tight tabular-nums text-emerald-950">
+          <span className={`block px-1.5 pt-1 text-[11px] font-semibold leading-tight tabular-nums ${draftKind === "EXAM" ? "text-amber-950" : "text-emerald-950"}`}>
             {preview.start}–{preview.end}
+            {draftKind === "EXAM" ? " · Examen" : ""}
           </span>
         </div>
       )}
       {blocks.map((block) => (
         <div
-          key={`${block.start}-${block.end}`}
-          className="pointer-events-none absolute inset-x-1.5 overflow-hidden rounded-lg bg-emerald-100 text-emerald-950 shadow-[inset_0_0_0_1px_rgba(16,185,129,0.28)]"
+          key={`${block.kind}-${block.start}-${block.end}`}
+          className={`pointer-events-none absolute inset-x-1.5 overflow-hidden rounded-lg ${block.kind === "EXAM" ? "bg-amber-100 text-amber-950 shadow-[inset_0_0_0_1px_rgba(217,119,6,0.35)]" : "bg-emerald-100 text-emerald-950 shadow-[inset_0_0_0_1px_rgba(16,185,129,0.28)]"}`}
           style={blockStyle(block)}
         >
           <span className="block px-1.5 pt-1 pr-6 text-[11px] font-semibold leading-tight tabular-nums">
             {block.start}–{block.end}
+            {block.kind === "EXAM" ? " · Examen" : ""}
           </span>
           <button
             type="button"
@@ -471,7 +502,7 @@ function TimeColumn({
             onClick={() => onRemove(block)}
             data-remove=""
             onPointerDown={(event) => event.stopPropagation()}
-            className="pointer-events-auto absolute right-1 top-1 flex h-5 w-5 items-center justify-center rounded-full text-sm leading-none text-emerald-950 hover:bg-emerald-200"
+            className={`pointer-events-auto absolute right-1 top-1 flex h-5 w-5 items-center justify-center rounded-full text-sm leading-none ${block.kind === "EXAM" ? "text-amber-950 hover:bg-amber-200" : "text-emerald-950 hover:bg-emerald-200"}`}
           >
             ×
           </button>
@@ -485,6 +516,8 @@ function WeeklyModal({
   rules,
   instructors,
   currentId,
+  paintKind,
+  onPaintKind,
   saving,
   onClose,
   onSave,
@@ -492,6 +525,8 @@ function WeeklyModal({
   rules: AvailabilityInstructor["availabilityRules"];
   instructors: { id: string; name: string }[];
   currentId: string;
+  paintKind: AvailabilityKind;
+  onPaintKind: (kind: AvailabilityKind) => void;
   saving: boolean;
   onClose: () => void;
   onSave: (instructorIds: string[], weekdays: number[], blocks: TimeBlock[]) => void;
@@ -518,7 +553,7 @@ function WeeklyModal({
       setAnchor(time === DAY_END || covers(blocks, time) ? null : time);
       return;
     }
-    const block = { start: anchor, end: time };
+    const block = { start: anchor, end: time, kind: paintKind };
     setAnchor(null);
     setPreviewEnd(null);
     if (blocks.some((existing) => blocksOverlap(existing, block))) {
@@ -569,7 +604,10 @@ function WeeklyModal({
             </button>
           ))}
         </div>
-        <p className="mt-4 text-sm font-semibold text-[#111827]">Blokken</p>
+        <div className="mt-4 flex items-center justify-between gap-3">
+          <p className="text-sm font-semibold text-[#111827]">Blokken</p>
+          <KindSwitch kind={paintKind} onChange={onPaintKind} />
+        </div>
         <p className="mt-1 text-sm text-[#58595b]">Klik het begin en daarna het einde. Een kruis haalt een blok weg. Zonder blokken op te slaan maakt die dagen leeg.</p>
         {localError && <p className="mt-2 text-sm text-[#ed1c24]">{localError}</p>}
         <div className="mt-3 grid max-h-[28rem] grid-cols-[3.25rem_1fr] overflow-y-auto rounded-xl border border-black/5">
@@ -578,6 +616,7 @@ function WeeklyModal({
             blocks={blocks}
             anchor={anchor}
             previewEnd={previewEnd}
+            draftKind={paintKind}
             onPick={chooseTime}
             onHover={(time) => setPreviewEnd(anchor && time && time > anchor ? time : null)}
             onRemove={(block) => setBlocks((current) => current.filter((item) => item.start !== block.start || item.end !== block.end))}
@@ -627,6 +666,8 @@ function AvailabilityGrid({
   todayKey,
   weekStart,
   saving,
+  paintKind,
+  onPaintKind,
   onWeekChange,
   onSaveDay,
   onError,
@@ -636,6 +677,8 @@ function AvailabilityGrid({
   todayKey: string;
   weekStart: Date;
   saving: boolean;
+  paintKind: AvailabilityKind;
+  onPaintKind: (kind: AvailabilityKind) => void;
   onWeekChange: (next: Date) => void;
   onSaveDay: (dateKey: string, blocks: TimeBlock[]) => Promise<void>;
   onError: (message: string | null) => void;
@@ -651,6 +694,10 @@ function AvailabilityGrid({
           <button type="button" className="mt-0.5 text-xs font-medium text-[#58595b] transition hover:text-[#111827]" onClick={() => onWeekChange(startOfBrusselsWeek(new Date()))}>Deze week</button>
         </div>
         <button type="button" className="rounded-full border border-black/10 px-3 py-1.5 text-sm font-semibold text-[#111827] transition hover:border-[#111827]" onClick={() => onWeekChange(addBrusselsDays(weekStart, 7))}>Volgende</button>
+      </div>
+      <div className="flex items-center justify-between gap-3 border-b border-black/5 px-4 py-3">
+        <p className="text-sm text-[#58595b]">Sleep een {paintKind === "EXAM" ? "examenblok" : "lesblok"}.</p>
+        <KindSwitch kind={paintKind} onChange={onPaintKind} />
       </div>
       <div className={`overflow-x-auto ${saving ? "pointer-events-none opacity-60" : ""}`}>
         <div className="min-w-[760px]">
@@ -680,9 +727,10 @@ function AvailabilityGrid({
                   dateKey={dateKey}
                   label={DAY_LABEL.format(day)}
                   today={dateKey === todayKey}
+                  draftKind={paintKind}
                   onCreate={(block) => {
                     onError(null);
-                    void onSaveDay(dateKey, sortBlocks([...dayBlocks(instructor, dateKey), block]));
+                    void onSaveDay(dateKey, sortBlocks([...dayBlocks(instructor, dateKey), { ...block, kind: paintKind }]));
                   }}
                   onReject={onError}
                   onRemove={(block) => {

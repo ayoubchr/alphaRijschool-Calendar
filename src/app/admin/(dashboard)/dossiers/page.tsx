@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
+import { serializeDossierDetails } from "@/lib/admin/dossierDetails";
 import { canCancelWithRefund } from "@/lib/cancellation";
 import { blockHoursForPackage, lessonInstructorName, THEORY_INSTRUCTOR_ID } from "@/lib/lessonBlocks";
 import { prisma } from "@/lib/prisma";
@@ -7,7 +8,7 @@ import { DossiersView } from "./DossiersView";
 
 const TRANSMISSION = { AUTOMAAT: "Automaat", MANUEEL: "Manueel", BOTH: "Beide" };
 
-export default async function DossiersPage() {
+export default async function DossiersPage({ searchParams }: { searchParams: { dossier?: string } }) {
   const session = await auth();
   if (session?.user.role !== "ADMIN") redirect("/admin/agenda");
 
@@ -15,6 +16,7 @@ export default async function DossiersPage() {
     include: {
       package: true,
       lessons: { include: { instructor: true }, orderBy: { startAt: "asc" } },
+      payments: { orderBy: { createdAt: "desc" } },
     },
     orderBy: { createdAt: "desc" },
   });
@@ -50,8 +52,10 @@ export default async function DossiersPage() {
           lessonCount: lessons.length,
           finished: dossier.hoursRemaining < blockHoursForPackage(dossier.package) && !hasUpcoming,
           lessons,
+          details: serializeDossierDetails(dossier),
         };
       })}
+      openId={searchParams.dossier ?? null}
     />
   );
 }

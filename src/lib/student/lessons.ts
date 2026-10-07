@@ -1,7 +1,7 @@
 import { Prisma } from "@prisma/client";
 import { auth } from "@/lib/auth";
 import { canCancelWithRefund } from "@/lib/cancellation";
-import { blockHoursForPackage, blockMinutesForPackage, hoursBetween, isTheoryPackage, lessonInstructorName, persistedInstructorId } from "@/lib/lessonBlocks";
+import { blockHoursForPackage, blockMinutesForPackage, hoursBetween, isExamPackage, isTheoryPackage, lessonInstructorName, persistedInstructorId } from "@/lib/lessonBlocks";
 import { formatLessonMoment, sendLessonsChangedEmail } from "@/lib/email";
 import { notifyStaffOfLessons } from "@/lib/notifications";
 import { prisma } from "@/lib/prisma";
@@ -48,6 +48,7 @@ export async function bookStudentLessons(input: {
       endAt: new Date(slot.endAt),
       durationMinutes,
       theory: isTheoryPackage(dossier.package),
+      exam: isExamPackage(dossier.package),
     });
     if (validationError) return { ok: false as const, status: validationError.status, error: validationError.message };
   }
@@ -80,6 +81,7 @@ export async function bookStudentLessons(input: {
     await notifyStaffOfLessons({
       title: "Nieuwe lessen ingepland",
       intro: `${studentName} plande extra lessen in.`,
+      dossierId: dossier.id,
       lessons: created.map((lesson) => ({
         startAt: lesson.startAt,
         endAt: lesson.endAt,
@@ -129,6 +131,7 @@ export async function changeStudentLesson(input: {
     await notifyStaffOfLessons({
       title: "Les geannuleerd",
       intro: `${studentName} annuleerde ${formatLessonMoment(lesson.startAt, lesson.endAt)}.`,
+      dossierId: lesson.dossierId,
       lessons: [{ startAt: lesson.startAt, endAt: lesson.endAt, instructorName: lessonInstructorName(lesson.instructor), instructorId: lesson.instructorId, studentName }],
     });
     await sendLessonsChangedEmail({
@@ -153,6 +156,7 @@ export async function changeStudentLesson(input: {
     endAt: nextEnd,
     durationMinutes: (lesson.endAt.getTime() - lesson.startAt.getTime()) / 60_000,
     theory,
+    exam: isExamPackage(lesson.package),
     ignoreLessonId: lesson.id,
   });
   if (validationError) return { ok: false as const, status: validationError.status, error: validationError.message };
@@ -167,6 +171,7 @@ export async function changeStudentLesson(input: {
   await notifyStaffOfLessons({
     title: "Les verplaatst",
     intro: `${studentName} verplaatste een les naar ${formatLessonMoment(nextStart, nextEnd)}.`,
+    dossierId: lesson.dossierId,
     lessons: moved,
   });
   await sendLessonsChangedEmail({

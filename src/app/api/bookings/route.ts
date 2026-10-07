@@ -8,8 +8,9 @@ import { encryptField } from "@/lib/encryption";
 import { validateRequestedSlot } from "@/lib/slotValidation";
 import { normalizeRijksregisternummer } from "@/lib/rijksregisternummer";
 import { brusselsDateKey } from "@/lib/brusselsWeek";
-import { blockMinutesForPackage, isTheoryPackage, persistedInstructorId, THEORY_DAY_COUNT } from "@/lib/lessonBlocks";
+import { blockMinutesForPackage, isExamPackage, isTheoryPackage, persistedInstructorId, THEORY_DAY_COUNT } from "@/lib/lessonBlocks";
 import { bookingRequestSchema } from "@/lib/validations/booking";
+import { appUrl } from "@/lib/appUrl";
 
 export async function POST(request: NextRequest) {
   const parsed = bookingRequestSchema.safeParse(await request.json());
@@ -26,7 +27,11 @@ export async function POST(request: NextRequest) {
   // The total requested hours must fit within the chosen package's hours — otherwise a caller
   // could request more lesson blocks than the package they're paying for actually includes.
   const theory = isTheoryPackage(pkg);
+  const exam = isExamPackage(pkg);
   const blockMinutes = blockMinutesForPackage(pkg);
+  if (exam && slots.length !== 1) {
+    return NextResponse.json({ error: "Kies één examenmoment." }, { status: 400 });
+  }
   if (theory && slots.length !== THEORY_DAY_COUNT) {
     return NextResponse.json({ error: "Theorie bestaat uit 2 dagen van 6 uur." }, { status: 400 });
   }
@@ -34,7 +39,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Kies twee verschillende dagen." }, { status: 400 });
   }
   const requestedHours = slots.length * (blockMinutes / 60);
-  if (requestedHours > pkg.hours) {
+  if (!exam && requestedHours > pkg.hours) {
     return NextResponse.json(
       { error: "Het aantal gevraagde lesuren overschrijdt het gekozen pakket." },
       { status: 400 }
@@ -55,6 +60,7 @@ export async function POST(request: NextRequest) {
       endAt: new Date(slot.endAt),
       durationMinutes: blockMinutes,
       theory,
+      exam,
     });
     if (validationError) {
       return NextResponse.json({ error: validationError.message }, { status: validationError.status });
@@ -121,12 +127,13 @@ export async function POST(request: NextRequest) {
   }
 
   try {
+    const studentName = `${details.firstName} ${details.lastName}`;
     const payment = await createDepositPayment({
       amountCents: amount,
-      description: paymentDescription(pkg, transmission),
-      redirectUrl: `${process.env.APP_URL}/boeken/bevestiging?dossier=${dossierId}`,
-      webhookUrl: `${process.env.APP_URL}/api/webhooks/mollie`,
-      metadata: { dossierId },
+      description: paymentDescription(pkg, transmission, studentName),
+      redirectUrl: appUrl(`/boeken/bevestiging?dossier=${dossierId}`),
+      webhookUrl: appUrl("/api/webhooks/mollie"),
+      metadata: { dossierId, naam: studentName.slice(0, 255) },
     });
 
     await prisma.payment.create({

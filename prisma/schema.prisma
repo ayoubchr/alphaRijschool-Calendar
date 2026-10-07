@@ -37,6 +37,11 @@ enum StaffRole {
   STUDENT
 }
 
+enum AvailabilityKind {
+  LESSON
+  EXAM
+}
+
 model Package {
   id              String   @id @default(cuid())
   name            String
@@ -70,6 +75,7 @@ model AvailabilityRule {
   weekday      Int
   startTime    String
   endTime      String
+  kind         AvailabilityKind @default(LESSON)
 }
 
 model AvailabilityException {
@@ -79,7 +85,8 @@ model AvailabilityException {
   date         DateTime   @db.Date
   startTime    String
   endTime      String
-  isAvailable  Boolean    @default(false)
+  isAvailable  Boolean          @default(false)
+  kind         AvailabilityKind @default(LESSON)
 }
 
 model TheoryDay {
@@ -141,6 +148,15 @@ model Payment {
   type            PaymentType
   status          PaymentStatus @default(OPEN)
   createdAt       DateTime      @default(now())
+}
+
+model StaffNotification {
+  id        String    @id @default(cuid())
+  title     String
+  body      String
+  href      String?
+  readAt    DateTime?
+  createdAt DateTime  @default(now())
 }
 
 model Profile {

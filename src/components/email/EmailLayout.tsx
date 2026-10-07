@@ -1,4 +1,5 @@
 import * as React from "react";
+import { appUrl } from "@/lib/appUrl";
 
 export function EmailLayout({
   preview,
@@ -15,7 +16,7 @@ export function EmailLayout({
   action?: { href: string; label: string };
   note?: string;
 }) {
-  const logo = `${process.env.APP_URL}/logo.png`;
+  const logo = appUrl("/logo.png");
   return (
     <div style={{ minWidth: "100%", margin: 0, padding: 0, backgroundColor: "#F4F4F4" }}>
       <div style={{ display: "none", fontSize: 1, lineHeight: 1, color: "#F4F4F4" }}>{preview}</div>

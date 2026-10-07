@@ -11,6 +11,11 @@ export function isTheoryPackage(pkg: { name: string }) {
   return pkg.name.toLowerCase().includes("theorie");
 }
 
+/** Praktijkexamen, including the package that adds a 2-hour preparation lesson. */
+export function isExamPackage(pkg: { name: string }) {
+  return pkg.name.toLowerCase().includes("praktijkexamen");
+}
+
 export function blockMinutesForPackage(pkg: { name: string }) {
   return isTheoryPackage(pkg) ? THEORY_DAY_MINUTES : LESSON_BLOCK_MINUTES;
 }

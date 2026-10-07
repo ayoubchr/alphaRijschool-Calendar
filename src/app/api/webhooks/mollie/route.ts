@@ -63,17 +63,22 @@ export async function POST(request: NextRequest) {
       studentName,
     }));
 
-    await sendBookingConfirmationEmail({
-      to: payment.dossier.email,
-      dossierName: studentName,
-      magicLinkUrl,
-      lessons,
-    });
     await notifyStaffOfLessons({
-      title: "Nieuwe lessen ingepland",
-      intro: `${studentName} heeft een les ingepland. Deze lessen staan in de agenda.`,
+      title: "Nieuwe boeking",
+      intro: `${studentName} heeft geboekt. Deze lessen staan in de agenda.`,
+      dossierId: payment.dossierId,
       lessons,
     });
+    try {
+      await sendBookingConfirmationEmail({
+        to: payment.dossier.email,
+        dossierName: studentName,
+        magicLinkUrl,
+        lessons,
+      });
+    } catch (error) {
+      console.error("Bevestigingsmail naar de leerling mislukt:", error);
+    }
   } else if (["failed", "canceled", "expired"].includes(status)) {
     // Same idempotent-claim pattern as the paid branch, so a retried failure notification
     // doesn't repeatedly re-cancel lessons that a later, different event may have already
