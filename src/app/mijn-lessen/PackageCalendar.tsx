@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { intervalsOverlap } from "@/components/StartTimeChips";
 import { WeekTimeline, type TimelineBlock, type TimelineFree } from "@/components/WeekTimeline";
 import { addBrusselsDays, brusselsDateKey, brusselsYmd, isTooSoonToPlan, startOfBrusselsWeek } from "@/lib/brusselsWeek";
-import { blockHoursForPackage, isExamPackage, isTheoryPackage } from "@/lib/lessonBlocks";
+import { blockHoursForPackage, isExamPackage, isPrepExamPackage, isTheoryPackage } from "@/lib/lessonBlocks";
 import { cancelOwnLesson, moveOwnLesson, planLessons } from "./actions";
 import type { StudentDossier, StudentLesson } from "./MijnLessenView";
 
@@ -125,6 +125,7 @@ export function PackageCalendar({ dossier, actions, onUpdated }: { dossier: Stud
   }
   const theory = isTheoryPackage({ name: dossier.packageName });
   const exam = isExamPackage({ name: dossier.packageName });
+  const prep = isPrepExamPackage({ name: dossier.packageName });
   const blockHours = blockHoursForPackage({ name: dossier.packageName });
   const creditLeft = Math.floor(dossier.hoursRemaining / blockHours) - reservedAdds.length;
   const dirty = moves.length > 0 || reservedAdds.length > 0;
@@ -280,7 +281,7 @@ export function PackageCalendar({ dossier, actions, onUpdated }: { dossier: Stud
           <li className="rounded-full border border-[#ed1c24] bg-white px-2.5 py-1 text-[#ed1c24]">Nog opslaan</li>
         </ul>
       </div>
-      <p className="mt-3 text-sm text-[#58595b]">{theory ? "Kies een groene theoriedag, of sleep een les ernaartoe. Klik daarna op Opslaan." : exam ? "Klik een groen examenblok, of sleep je examen ernaartoe. Klik daarna op Opslaan." : "Klik een groen blok. Dat is de hele les van 2 uur. Je kan een les ook verslepen. Klik daarna op Opslaan."}</p>
+      <p className="mt-3 text-sm text-[#58595b]">{theory ? "Kies een groene theoriedag, of sleep een les ernaartoe. Klik daarna op Opslaan." : prep ? "Klik een groen blok met voorbereiding en examen, of sleep je moment ernaartoe. Klik daarna op Opslaan." : exam ? "Klik een groen examenblok, of sleep je examen ernaartoe. Klik daarna op Opslaan." : "Klik een groen blok. Dat is de hele les van 2 uur. Je kan een les ook verslepen. Klik daarna op Opslaan."}</p>
       {error && <p className="mt-3 text-sm text-[#ed1c24]">{error}</p>}
 
       <div className="mt-4">

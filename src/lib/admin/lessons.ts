@@ -1,7 +1,7 @@
 import { Prisma } from "@prisma/client";
 import { auth } from "@/lib/auth";
 import { canCancelWithRefund } from "@/lib/cancellation";
-import { hoursBetween, isExamPackage, isTheoryPackage, lessonInstructorName, persistedInstructorId } from "@/lib/lessonBlocks";
+import { availabilityKindForPackage, hoursBetween, isExamPackage, isTheoryPackage, lessonInstructorName, persistedInstructorId } from "@/lib/lessonBlocks";
 import { formatLessonMoment } from "@/lib/email";
 import { notifyStaffOfLessons } from "@/lib/notifications";
 import { prisma } from "@/lib/prisma";
@@ -96,6 +96,7 @@ export async function rescheduleLesson(id: string, startAt: string, endAt: strin
     durationMinutes: (lesson.endAt.getTime() - lesson.startAt.getTime()) / 60_000,
     theory,
     exam: isExamPackage(lesson.package),
+    blockKind: availabilityKindForPackage(lesson.package),
     ignoreLessonId: lesson.id,
   });
   if (validationError) return { ok: false as const, status: validationError.status, error: validationError.message };

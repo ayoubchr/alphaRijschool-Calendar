@@ -3,7 +3,7 @@
 import { Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { auth } from "@/lib/auth";
-import { blockHoursForPackage, blockMinutesForPackage, isExamPackage, isTheoryPackage, lessonInstructorName, persistedInstructorId } from "@/lib/lessonBlocks";
+import { availabilityKindForPackage, blockHoursForPackage, blockMinutesForPackage, isExamPackage, isTheoryPackage, lessonInstructorName, persistedInstructorId } from "@/lib/lessonBlocks";
 import { sendLessonsChangedEmail } from "@/lib/email";
 import { notifyStaffOfLessons } from "@/lib/notifications";
 import { prisma } from "@/lib/prisma";
@@ -64,6 +64,7 @@ export async function planDossierLessons(input: { dossierId: string; slots: { in
       durationMinutes,
       theory: isTheoryPackage(dossier.package),
       exam: isExamPackage(dossier.package),
+      blockKind: availabilityKindForPackage(dossier.package),
     });
     if (validationError) return { ok: false as const, error: validationError.message };
   }

@@ -8,7 +8,7 @@ import { encryptField } from "@/lib/encryption";
 import { validateRequestedSlot } from "@/lib/slotValidation";
 import { normalizeRijksregisternummer } from "@/lib/rijksregisternummer";
 import { brusselsDateKey } from "@/lib/brusselsWeek";
-import { blockMinutesForPackage, isExamPackage, isTheoryPackage, persistedInstructorId, THEORY_DAY_COUNT } from "@/lib/lessonBlocks";
+import { availabilityKindForPackage, blockMinutesForPackage, isExamPackage, isTheoryPackage, persistedInstructorId, THEORY_DAY_COUNT } from "@/lib/lessonBlocks";
 import { bookingRequestSchema } from "@/lib/validations/booking";
 import { appUrl } from "@/lib/appUrl";
 
@@ -61,6 +61,7 @@ export async function POST(request: NextRequest) {
       durationMinutes: blockMinutes,
       theory,
       exam,
+      blockKind: availabilityKindForPackage(pkg),
     });
     if (validationError) {
       return NextResponse.json({ error: validationError.message }, { status: validationError.status });

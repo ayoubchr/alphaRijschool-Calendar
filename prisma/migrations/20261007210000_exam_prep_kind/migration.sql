@@ -1,0 +1,1 @@
+ALTER TYPE "AvailabilityKind" ADD VALUE 'EXAM_PREP';

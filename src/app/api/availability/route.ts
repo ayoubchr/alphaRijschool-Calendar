@@ -3,7 +3,7 @@ import { Prisma, type Transmission } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { computeAvailableSlots } from "@/lib/availability";
 import { isTooSoonToPlan } from "@/lib/brusselsWeek";
-import { blockMinutesForPackage, isExamPackage, isTheoryPackage, THEORY_INSTRUCTOR_ID, THEORY_LABEL } from "@/lib/lessonBlocks";
+import { availabilityKindForPackage, blockMinutesForPackage, isTheoryPackage, THEORY_INSTRUCTOR_ID, THEORY_LABEL } from "@/lib/lessonBlocks";
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
@@ -91,7 +91,7 @@ export async function GET(request: NextRequest) {
       rangeEnd,
       lessonDurationMinutes: durationMinutes,
       weekdayFilter,
-      blockKind: isExamPackage(pkg) ? "EXAM" : "LESSON",
+      blockKind: availabilityKindForPackage(pkg),
     }).filter((slot) => !isTooSoonToPlan(slot.startAt)),
   }));
 

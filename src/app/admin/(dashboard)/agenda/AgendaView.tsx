@@ -6,7 +6,7 @@ import type { DossierDetails } from "@/lib/admin/dossierDetails";
 import { StatusBadge } from "../StatusBadge";
 import { LessonCalendar, type Slot } from "@/components/LessonCalendar";
 import { addBrusselsDays, brusselsDateKey, brusselsMidnight, brusselsYmd, startOfBrusselsWeek } from "@/lib/brusselsWeek";
-import { isExamPackage, THEORY_LABEL } from "@/lib/lessonBlocks";
+import { isExamPackage, isPrepExamPackage, THEORY_LABEL } from "@/lib/lessonBlocks";
 import { cancelAgendaLesson, moveAgendaLesson } from "./actions";
 
 interface AgendaTheoryDay {
@@ -399,7 +399,7 @@ function AgendaSlotPicker({
         canGoPrevious
         canGoNext
         loading={loading}
-        hint={isExamPackage({ name: lesson.packageName }) ? "Klik een groen blok. Dat is het hele examen." : undefined}
+        hint={isPrepExamPackage({ name: lesson.packageName }) ? "Klik een groen blok. Dat is de voorbereiding en het examen samen." : isExamPackage({ name: lesson.packageName }) ? "Klik een groen blok. Dat is het hele examen." : undefined}
         onWeekChange={setWeekStart}
         onSelectSlot={(slot) => setSelected(slot as Slot & { instructorId: string; instructorName: string })}
       />

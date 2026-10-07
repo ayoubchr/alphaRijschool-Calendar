@@ -25,6 +25,7 @@ interface CalendarStepProps {
   blockHours?: number;
   exact?: boolean;
   exam?: boolean;
+  prep?: boolean;
   onConfirm: (slots: BookingSlot[]) => void;
   onBack: () => void;
 }
@@ -55,7 +56,7 @@ function groupByStart(slots: BookingSlot[]) {
   return grouped;
 }
 
-export function CalendarStep({ packageId, transmission, lessonCount, blockHours = 2, exact = false, exam = false, onConfirm, onBack }: CalendarStepProps) {
+export function CalendarStep({ packageId, transmission, lessonCount, blockHours = 2, exact = false, exam = false, prep = false, onConfirm, onBack }: CalendarStepProps) {
   const [weekStart, setWeekStart] = useState(() => startOfBrusselsWeek(new Date()));
   const [slots, setSlots] = useState<BookingSlot[]>([]);
   const [selected, setSelected] = useState<BookingSlot[]>([]);
@@ -163,9 +164,11 @@ export function CalendarStep({ packageId, transmission, lessonCount, blockHours 
 
   return (
     <div>
-      <h1 className="mb-2 text-2xl font-extrabold text-[#111827]">{exam ? "Kies je examenmoment" : "Kies je lesmomenten"}</h1>
+      <h1 className="mb-2 text-2xl font-extrabold text-[#111827]">{prep ? "Kies je examen met voorbereiding" : exam ? "Kies je examenmoment" : "Kies je lesmomenten"}</h1>
       <p className="mb-5 text-sm text-[#58595b]">
-        {exam
+        {prep
+          ? "Kies het blok met 2 uur voorbereiding en het praktijkexamen. Je ziet alleen die tijden."
+          : exam
           ? "Kies het examenblok dat bij jou past. Je ziet alleen de tijden die voor het praktijkexamen openstaan."
           : exact
             ? `Kies ${lessonCount} dagen van ${blockHours} uur.`
@@ -185,7 +188,7 @@ export function CalendarStep({ packageId, transmission, lessonCount, blockHours 
         onNext={() => setWeekStart(addBrusselsDays(weekStart, 7))}
         freeByDay={freeByDay}
         blocksByDay={blocksByDay}
-        hint={exam ? "Klik een groen blok. Dat is het hele examen." : exact ? "Klik een groene dag. Die duurt 6 uur." : "Klik een groen blok. Dat is de hele les, bijvoorbeeld van 08:00 tot 10:00."}
+        hint={prep ? "Klik een groen blok. Dat is de voorbereiding en het examen samen." : exam ? "Klik een groen blok. Dat is het hele examen." : exact ? "Klik een groene dag. Die duurt 6 uur." : "Klik een groen blok. Dat is de hele les, bijvoorbeeld van 08:00 tot 10:00."}
         onPickFree={(startAt) => {
           const options = openByTime.get(startAt);
           if (options) openInstructorChoice(options);

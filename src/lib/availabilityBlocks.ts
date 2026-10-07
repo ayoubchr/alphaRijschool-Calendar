@@ -1,4 +1,4 @@
-export type AvailabilityKind = "LESSON" | "EXAM";
+export type AvailabilityKind = "LESSON" | "EXAM" | "EXAM_PREP";
 export type TimeBlock = { start: string; end: string; kind: AvailabilityKind };
 
 export function minutesOf(time: string) {
@@ -59,7 +59,7 @@ export function resolveDayBlocks(
   rules: { start: string; end: string; kind?: AvailabilityKind }[],
   exceptions: { start: string; end: string; isAvailable: boolean; kind?: AvailabilityKind }[],
 ): TimeBlock[] {
-  return (["LESSON", "EXAM"] as const).flatMap((kind) => {
+  return (["LESSON", "EXAM", "EXAM_PREP"] as const).flatMap((kind) => {
     const byStart = new Map<string, TimeBlock>();
     for (const rule of rules) {
       if ((rule.kind ?? "LESSON") !== kind) continue;
@@ -74,7 +74,7 @@ export function resolveDayBlocks(
       byStart.set(item.start.slice(0, 5), { start: item.start.slice(0, 5), end: item.end.slice(0, 5), kind });
     }
     const resolved = [...byStart.values()];
-    if (kind === "EXAM") return resolved;
+    if (kind !== "LESSON") return resolved;
     return coalesceLegacyBlocks(resolved).map((block) => ({ ...block, kind: "LESSON" as const }));
   });
 }

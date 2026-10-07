@@ -16,6 +16,18 @@ export function isExamPackage(pkg: { name: string }) {
   return pkg.name.toLowerCase().includes("praktijkexamen");
 }
 
+/** The 2-hour preparation lesson plus the practical exam. Those pupils only see EXAM_PREP blocks. */
+export function isPrepExamPackage(pkg: { name: string }) {
+  const name = pkg.name.toLowerCase();
+  return name.includes("praktijkexamen") && name.includes("voorbereiding");
+}
+
+export function availabilityKindForPackage(pkg: { name: string }): "LESSON" | "EXAM" | "EXAM_PREP" {
+  if (isPrepExamPackage(pkg)) return "EXAM_PREP";
+  if (isExamPackage(pkg)) return "EXAM";
+  return "LESSON";
+}
+
 export function blockMinutesForPackage(pkg: { name: string }) {
   return isTheoryPackage(pkg) ? THEORY_DAY_MINUTES : LESSON_BLOCK_MINUTES;
 }

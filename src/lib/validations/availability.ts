@@ -15,7 +15,7 @@ export const availabilityRuleSchema = z
 export type AvailabilityRuleInput = z.infer<typeof availabilityRuleSchema>;
 
 const time = z.string().regex(/^\d{2}:\d{2}$/);
-const availabilityKind = z.enum(["LESSON", "EXAM"]).default("LESSON");
+const availabilityKind = z.enum(["LESSON", "EXAM", "EXAM_PREP"]).default("LESSON");
 
 export const availabilityRuleUpdateSchema = z
   .object({

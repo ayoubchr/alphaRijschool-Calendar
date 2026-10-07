@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { computeAvailableSlots } from "@/lib/availability";
+import { computeAvailableSlots, type AvailabilityKind } from "@/lib/availability";
 import { isTooSoonToPlan } from "@/lib/brusselsWeek";
 import { THEORY_DAY_MINUTES } from "@/lib/lessonBlocks";
 
@@ -28,10 +28,12 @@ export async function validateRequestedSlot(params: {
   theory?: boolean;
   /** Practical exam slots keep the length of the exam block, not a fixed 2 hours. */
   exam?: boolean;
+  /** Which availability blocks may satisfy this booking. */
+  blockKind?: AvailabilityKind;
   /** The lesson being moved. Its current time must not block the new start. */
   ignoreLessonId?: string;
 }): Promise<SlotValidationError | null> {
-  const { instructorId, transmission, startAt, endAt, durationMinutes, theory, exam, ignoreLessonId } = params;
+  const { instructorId, transmission, startAt, endAt, durationMinutes, theory, exam, blockKind, ignoreLessonId } = params;
 
   if (theory) return validateTheorySlot(startAt, endAt);
 
@@ -81,7 +83,7 @@ export async function validateRequestedSlot(params: {
     rangeStart,
     rangeEnd,
     lessonDurationMinutes: durationMinutes,
-    blockKind: exam ? "EXAM" : "LESSON",
+    blockKind: blockKind ?? (exam ? "EXAM" : "LESSON"),
   });
 
   const isRealSlot = slots.some((s) => s.startAt.getTime() === startAt.getTime() && s.endAt.getTime() === endAt.getTime());

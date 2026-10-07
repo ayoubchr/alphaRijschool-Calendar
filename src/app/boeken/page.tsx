@@ -8,7 +8,7 @@ import { TransmissionStep } from "./_components/TransmissionStep";
 import { CalendarStep, type BookingSlot } from "./_components/CalendarStep";
 import { DetailsStep, type BookingDetails } from "./_components/DetailsStep";
 import { SummaryStep } from "./_components/SummaryStep";
-import { blockHoursForPackage, isExamPackage, isTheoryPackage, THEORY_DAY_COUNT } from "@/lib/lessonBlocks";
+import { blockHoursForPackage, isExamPackage, isPrepExamPackage, isTheoryPackage, THEORY_DAY_COUNT } from "@/lib/lessonBlocks";
 
 type Step = "package" | "transmission" | "calendar" | "details" | "summary";
 type Transmission = "AUTOMAAT" | "MANUEEL";
@@ -114,6 +114,7 @@ function BookingWizard() {
           blockHours={blockHoursForPackage(selectedPackage)}
           exact={isTheoryPackage(selectedPackage)}
           exam={isExamPackage(selectedPackage)}
+          prep={isPrepExamPackage(selectedPackage)}
           onConfirm={(chosen) => {
             setSlots(chosen);
             setStep("details");

@@ -3,7 +3,7 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { findDossierByMagicLinkToken } from "@/lib/dossiers";
 import { validateRequestedSlot } from "@/lib/slotValidation";
-import { blockHoursForPackage, blockMinutesForPackage, isExamPackage, isTheoryPackage, persistedInstructorId } from "@/lib/lessonBlocks";
+import { availabilityKindForPackage, blockHoursForPackage, blockMinutesForPackage, isExamPackage, isTheoryPackage, persistedInstructorId } from "@/lib/lessonBlocks";
 import { dossierLessonSchema } from "@/lib/validations/dossierLesson";
 
 class InsufficientCreditError extends Error {}
@@ -38,6 +38,7 @@ export async function POST(request: NextRequest, { params }: { params: { token: 
     durationMinutes: blockMinutesForPackage(dossier.package),
     theory: isTheoryPackage(dossier.package),
     exam: isExamPackage(dossier.package),
+    blockKind: availabilityKindForPackage(dossier.package),
   });
   if (validationError) {
     return NextResponse.json({ error: validationError.message }, { status: validationError.status });

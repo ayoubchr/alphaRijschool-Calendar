@@ -171,7 +171,7 @@ export function AvailabilityView({
     <div>
       <h1 className="mb-2 text-2xl font-extrabold text-[#111827]">Beschikbaarheid</h1>
       <p className="mb-6 max-w-3xl text-sm text-[#58595b]">
-        Kies Les of Examen en sleep dan het blok. Lesblokken zijn groen, examenblokken oranje. Een leerling die het praktijkexamen boekt, met of zonder voorbereidingsles, ziet alleen de examenblokken. Het kruis haalt één blok weg.
+        Kies en sleep dan het blok. Groen is een les, oranje een praktijkexamen, blauw een examen met 2 uur voorbereiding. Een leerling ziet alleen de blokken van het pakket dat hij boekt.
       </p>
       {error && <p className="mb-4 text-sm text-[#ed1c24]">{error}</p>}
 
@@ -333,10 +333,23 @@ function rangeBlock(origin: string, current: string): { start: string; end: stri
   return { start: from, end };
 }
 
+function kindLabel(kind: AvailabilityKind) {
+  if (kind === "EXAM_PREP") return "Examen + 2u";
+  if (kind === "EXAM") return "Examen";
+  return "";
+}
+
+function kindSurface(kind: AvailabilityKind | undefined, draft = false) {
+  if (kind === "EXAM_PREP") return draft ? "bg-sky-200/80 text-sky-950" : "bg-sky-100 text-sky-950 shadow-[inset_0_0_0_1px_rgba(2,132,199,0.35)]";
+  if (kind === "EXAM") return draft ? "bg-amber-200/80 text-amber-950" : "bg-amber-100 text-amber-950 shadow-[inset_0_0_0_1px_rgba(217,119,6,0.35)]";
+  return draft ? "bg-emerald-200/80 text-emerald-950" : "bg-emerald-100 text-emerald-950 shadow-[inset_0_0_0_1px_rgba(16,185,129,0.28)]";
+}
+
 function KindSwitch({ kind, onChange }: { kind: AvailabilityKind; onChange: (kind: AvailabilityKind) => void }) {
   const options: { id: AvailabilityKind; label: string; on: string }[] = [
     { id: "LESSON", label: "Les", on: "bg-emerald-600 text-white" },
     { id: "EXAM", label: "Examen", on: "bg-amber-500 text-white" },
+    { id: "EXAM_PREP", label: "Examen + 2u", on: "bg-sky-600 text-white" },
   ];
   return (
     <div className="flex rounded-full border border-black/10 bg-white p-1 text-sm font-semibold">
@@ -477,24 +490,24 @@ function TimeColumn({
       })}
       {preview && (
         <div
-          className={`pointer-events-none absolute inset-x-1.5 rounded-lg ${draftKind === "EXAM" ? "bg-amber-200/80" : "bg-emerald-200/80"}`}
+          className={`pointer-events-none absolute inset-x-1.5 rounded-lg ${kindSurface(draftKind, true)}`}
           style={blockStyle(preview)}
         >
-          <span className={`block px-1.5 pt-1 text-[11px] font-semibold leading-tight tabular-nums ${draftKind === "EXAM" ? "text-amber-950" : "text-emerald-950"}`}>
+          <span className="block px-1.5 pt-1 text-[11px] font-semibold leading-tight tabular-nums">
             {preview.start}–{preview.end}
-            {draftKind === "EXAM" ? " · Examen" : ""}
+            {kindLabel(draftKind) ? ` · ${kindLabel(draftKind)}` : ""}
           </span>
         </div>
       )}
       {blocks.map((block) => (
         <div
           key={`${block.kind}-${block.start}-${block.end}`}
-          className={`pointer-events-none absolute inset-x-1.5 overflow-hidden rounded-lg ${block.kind === "EXAM" ? "bg-amber-100 text-amber-950 shadow-[inset_0_0_0_1px_rgba(217,119,6,0.35)]" : "bg-emerald-100 text-emerald-950 shadow-[inset_0_0_0_1px_rgba(16,185,129,0.28)]"}`}
+          className={`pointer-events-none absolute inset-x-1.5 overflow-hidden rounded-lg ${kindSurface(block.kind)}`}
           style={blockStyle(block)}
         >
           <span className="block px-1.5 pt-1 pr-6 text-[11px] font-semibold leading-tight tabular-nums">
             {block.start}–{block.end}
-            {block.kind === "EXAM" ? " · Examen" : ""}
+            {kindLabel(block.kind) ? ` · ${kindLabel(block.kind)}` : ""}
           </span>
           <button
             type="button"
@@ -502,7 +515,7 @@ function TimeColumn({
             onClick={() => onRemove(block)}
             data-remove=""
             onPointerDown={(event) => event.stopPropagation()}
-            className={`pointer-events-auto absolute right-1 top-1 flex h-5 w-5 items-center justify-center rounded-full text-sm leading-none ${block.kind === "EXAM" ? "text-amber-950 hover:bg-amber-200" : "text-emerald-950 hover:bg-emerald-200"}`}
+            className="pointer-events-auto absolute right-1 top-1 flex h-5 w-5 items-center justify-center rounded-full text-sm leading-none hover:bg-black/10"
           >
             ×
           </button>
@@ -696,7 +709,7 @@ function AvailabilityGrid({
         <button type="button" className="rounded-full border border-black/10 px-3 py-1.5 text-sm font-semibold text-[#111827] transition hover:border-[#111827]" onClick={() => onWeekChange(addBrusselsDays(weekStart, 7))}>Volgende</button>
       </div>
       <div className="flex items-center justify-between gap-3 border-b border-black/5 px-4 py-3">
-        <p className="text-sm text-[#58595b]">Sleep een {paintKind === "EXAM" ? "examenblok" : "lesblok"}.</p>
+        <p className="text-sm text-[#58595b]">Sleep een {paintKind === "EXAM_PREP" ? "examenblok met 2 uur voorbereiding" : paintKind === "EXAM" ? "examenblok" : "lesblok"}.</p>
         <KindSwitch kind={paintKind} onChange={onPaintKind} />
       </div>
       <div className={`overflow-x-auto ${saving ? "pointer-events-none opacity-60" : ""}`}>

@@ -40,7 +40,7 @@ function serializeException(exception: {
   startTime: string;
   endTime: string;
   isAvailable: boolean;
-  kind: "LESSON" | "EXAM";
+  kind: "LESSON" | "EXAM" | "EXAM_PREP";
 }) {
   return {
     id: exception.id,
