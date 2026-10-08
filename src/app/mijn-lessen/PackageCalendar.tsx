@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { intervalsOverlap } from "@/components/StartTimeChips";
 import { WeekTimeline, type TimelineBlock, type TimelineFree } from "@/components/WeekTimeline";
-import { addBrusselsDays, brusselsDateKey, brusselsYmd, isTooSoonToPlan, startOfBrusselsWeek } from "@/lib/brusselsWeek";
+import { addBrusselsDays, brusselsDateKey, brusselsYmd, isTooSoonToPlan, latestPlanningWeek, PLANNING_MONTHS_AHEAD, startOfBrusselsWeek } from "@/lib/brusselsWeek";
 import { blockHoursForPackage, isExamPackage, isPrepExamPackage, isTheoryPackage } from "@/lib/lessonBlocks";
 import { cancelOwnLesson, moveOwnLesson, planLessons } from "./actions";
 import type { StudentDossier, StudentLesson } from "./MijnLessenView";
@@ -73,6 +73,7 @@ export function PackageCalendar({ dossier, actions, onUpdated }: { dossier: Stud
   const [cancelling, setCancelling] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [firstSlot, setFirstSlot] = useState<string | null | undefined>(undefined);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -89,6 +90,21 @@ export function PackageCalendar({ dossier, actions, onUpdated }: { dossier: Stud
       .finally(() => { if (!controller.signal.aborted) setLoading(false); });
     return () => controller.abort();
   }, [dossier.packageId, dossier.transmission, weekStart, pickedId]);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    const from = new Date();
+    const to = addBrusselsDays(latestPlanningWeek(from), 7);
+    fetch(`/api/availability?packageId=${dossier.packageId}&from=${from.toISOString()}&to=${to.toISOString()}&transmission=${dossier.transmission}`, { signal: controller.signal })
+      .then((res) => res.json())
+      .then((data: { slots: { startAt: string }[] }[]) => {
+        if (controller.signal.aborted || !Array.isArray(data)) return;
+        const starts = data.flatMap((entry) => entry.slots.map((slot) => slot.startAt));
+        setFirstSlot(starts.sort()[0] ?? null);
+      })
+      .catch(() => { if (!controller.signal.aborted) setFirstSlot(null); });
+    return () => controller.abort();
+  }, [dossier.packageId, dossier.transmission]);
 
   useEffect(() => {
     if (!cancelTarget && !choosing) return;
@@ -123,6 +139,20 @@ export function PackageCalendar({ dossier, actions, onUpdated }: { dossier: Stud
     group.push(slot);
     openByTime.set(slot.startAt, group);
   }
+  const now = Date.now();
+  const firstLesson = placed
+    .filter((lesson) => lesson.status !== "COMPLETED" && new Date(lesson.startAt).getTime() >= now)
+    .map((lesson) => lesson.startAt)
+    .sort()[0] ?? null;
+  const jumpIsLesson = Boolean(firstLesson && (firstSlot == null || firstLesson <= firstSlot));
+  const jumpAt = jumpIsLesson ? firstLesson : firstSlot ?? null;
+  const jumpLabel = firstSlot === undefined
+    ? "Eerste moment zoeken…"
+    : jumpIsLesson
+      ? "Eerste les"
+      : jumpAt
+        ? "Eerste vrije moment"
+        : `Geen vrij moment in de komende ${PLANNING_MONTHS_AHEAD} maanden`;
   const theory = isTheoryPackage({ name: dossier.packageName });
   const exam = isExamPackage({ name: dossier.packageName });
   const prep = isPrepExamPackage({ name: dossier.packageName });
@@ -290,8 +320,12 @@ export function PackageCalendar({ dossier, actions, onUpdated }: { dossier: Stud
           todayKey={todayKey}
           weekLabel={weekLabel(weekStart)}
           loading={loading}
+          canGoNext={weekStart.getTime() < latestPlanningWeek().getTime()}
           onPrevious={() => setWeekStart(addBrusselsDays(weekStart, -7))}
           onNext={() => setWeekStart(addBrusselsDays(weekStart, 7))}
+          jumpLabel={jumpLabel}
+          jumpDisabled={!jumpAt || startOfBrusselsWeek(new Date(jumpAt)).getTime() === weekStart.getTime()}
+          onJump={() => { if (jumpAt) setWeekStart(startOfBrusselsWeek(new Date(jumpAt))); }}
           freeByDay={freeByDay}
           blocksByDay={blocksByDay}
           dropEnabled={Boolean(draggingId)}

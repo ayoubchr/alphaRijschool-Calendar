@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, type DragEvent } from "react";
+import { IoArrowForwardOutline } from "react-icons/io5";
 import { brusselsDateKey } from "@/lib/brusselsWeek";
 
 const BRUSSELS = "Europe/Brussels";
@@ -80,6 +81,9 @@ export function WeekTimeline({
   canGoNext = true,
   onPrevious,
   onNext,
+  jumpLabel,
+  jumpDisabled = false,
+  onJump,
   freeByDay,
   blocksByDay,
   highlight = null,
@@ -98,6 +102,9 @@ export function WeekTimeline({
   canGoNext?: boolean;
   onPrevious: () => void;
   onNext: () => void;
+  jumpLabel?: string;
+  jumpDisabled?: boolean;
+  onJump?: () => void;
   freeByDay: Record<string, TimelineFree[]>;
   blocksByDay: Record<string, TimelineBlock[]>;
   highlight?: { startAt: string; endAt: string } | null;
@@ -139,6 +146,14 @@ export function WeekTimeline({
           Volgende
         </button>
       </div>
+      {onJump && jumpLabel && (
+        <div className="flex justify-center border-b border-black/5 px-4 py-2">
+          <button type="button" disabled={jumpDisabled} onClick={onJump} className="inline-flex items-center gap-1.5 rounded-full border border-[#ed1c24] bg-white px-3 py-1.5 text-sm font-semibold text-[#ed1c24] transition hover:bg-[#fff5f5] disabled:cursor-not-allowed disabled:border-black/10 disabled:text-[#58595b] disabled:hover:bg-white">
+            {jumpLabel}
+            {!jumpDisabled && <IoArrowForwardOutline className="h-4 w-4" aria-hidden />}
+          </button>
+        </div>
+      )}
       {hint && <p className="border-b border-black/5 px-4 py-2 text-xs leading-relaxed text-[#58595b]">{hint}</p>}
       <div className={`overflow-x-auto ${loading ? "pointer-events-none opacity-60" : ""}`}>
         <div className="min-w-[760px]">

@@ -84,3 +84,17 @@ export function addBrusselsDays(midnight: Date, days: number): Date {
   const next = addCalendarDays(year, month, day, days);
   return brusselsMidnight(next.year, next.month, next.day);
 }
+
+/** How far a pupil may look ahead when booking or planning. */
+export const PLANNING_MONTHS_AHEAD = 8;
+
+export function addBrusselsMonths(anchor: Date, months: number): Date {
+  const { year, month, day } = brusselsYmd(anchor);
+  const shifted = new Date(Date.UTC(year, month - 1 + months, day));
+  return brusselsMidnight(shifted.getUTCFullYear(), shifted.getUTCMonth() + 1, shifted.getUTCDate());
+}
+
+/** Monday of the last week a pupil can open, 8 months from now. */
+export function latestPlanningWeek(now = new Date()): Date {
+  return startOfBrusselsWeek(addBrusselsMonths(now, PLANNING_MONTHS_AHEAD));
+}

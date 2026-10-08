@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { intervalsOverlap } from "@/components/StartTimeChips";
 import { WeekTimeline, type TimelineBlock, type TimelineFree } from "@/components/WeekTimeline";
-import { addBrusselsDays, brusselsDateKey, brusselsYmd, startOfBrusselsWeek } from "@/lib/brusselsWeek";
+import { addBrusselsDays, brusselsDateKey, brusselsYmd, latestPlanningWeek, PLANNING_MONTHS_AHEAD, startOfBrusselsWeek } from "@/lib/brusselsWeek";
 
 export type BookingSlot = {
   startAt: string;
@@ -30,7 +30,6 @@ interface CalendarStepProps {
   onBack: () => void;
 }
 
-const WEEKS_AHEAD = 12;
 const BRUSSELS = "Europe/Brussels";
 const TIME_LABEL = new Intl.DateTimeFormat("nl-BE", { timeZone: BRUSSELS, hour: "2-digit", minute: "2-digit" });
 const RANGE_DAY = new Intl.DateTimeFormat("nl-BE", { timeZone: BRUSSELS, day: "numeric", month: "long" });
@@ -63,9 +62,10 @@ export function CalendarStep({ packageId, transmission, lessonCount, blockHours 
   const [choosing, setChoosing] = useState<BookingSlot[] | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [firstSlot, setFirstSlot] = useState<string | null | undefined>(undefined);
 
   const currentWeek = startOfBrusselsWeek(new Date());
-  const lastWeek = addBrusselsDays(currentWeek, WEEKS_AHEAD * 7);
+  const lastWeek = latestPlanningWeek();
 
   useEffect(() => {
     const controller = new AbortController();
@@ -93,6 +93,21 @@ export function CalendarStep({ packageId, transmission, lessonCount, blockHours 
 
     return () => controller.abort();
   }, [packageId, transmission, weekStart]);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    const from = new Date();
+    const to = addBrusselsDays(latestPlanningWeek(from), 7);
+    fetch(`/api/availability?packageId=${packageId}&from=${from.toISOString()}&to=${to.toISOString()}&transmission=${transmission}`, { signal: controller.signal })
+      .then((res) => res.json())
+      .then((data: InstructorSlots[]) => {
+        if (controller.signal.aborted || !Array.isArray(data)) return;
+        const starts = data.flatMap((entry) => entry.slots.map((slot) => slot.startAt));
+        setFirstSlot(starts.sort()[0] ?? null);
+      })
+      .catch(() => { if (!controller.signal.aborted) setFirstSlot(null); });
+    return () => controller.abort();
+  }, [packageId, transmission]);
 
   useEffect(() => {
     if (!choosing) return;
@@ -186,6 +201,9 @@ export function CalendarStep({ packageId, transmission, lessonCount, blockHours 
         canGoNext={weekStart.getTime() < lastWeek.getTime()}
         onPrevious={() => setWeekStart(addBrusselsDays(weekStart, -7))}
         onNext={() => setWeekStart(addBrusselsDays(weekStart, 7))}
+        jumpLabel={firstSlot === undefined ? "Eerste vrije moment zoeken…" : firstSlot ? "Eerste vrije moment" : `Geen vrij moment in de komende ${PLANNING_MONTHS_AHEAD} maanden`}
+        jumpDisabled={!firstSlot || startOfBrusselsWeek(new Date(firstSlot)).getTime() === weekStart.getTime()}
+        onJump={() => { if (firstSlot) setWeekStart(startOfBrusselsWeek(new Date(firstSlot))); }}
         freeByDay={freeByDay}
         blocksByDay={blocksByDay}
         hint={prep ? "Klik een groen blok. Dat is de voorbereiding en het examen samen." : exam ? "Klik een groen blok. Dat is het hele examen." : exact ? "Klik een groene dag. Die duurt 6 uur." : "Klik een groen blok. Dat is de hele les, bijvoorbeeld van 08:00 tot 10:00."}
