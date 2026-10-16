@@ -17,6 +17,7 @@ export default async function DossiersPage({ searchParams }: { searchParams: { d
       package: true,
       lessons: { include: { instructor: true }, orderBy: { startAt: "asc" } },
       payments: { orderBy: { createdAt: "desc" } },
+      documents: { orderBy: { createdAt: "asc" } },
     },
     orderBy: { createdAt: "desc" },
   });

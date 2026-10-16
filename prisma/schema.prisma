@@ -106,6 +106,7 @@ model Dossier {
   address                String
   dateOfBirth            DateTime  @db.Date
   nationalRegisterNumber String?
+  termsAcceptedAt        DateTime?
   packageId              String
   package                Package   @relation(fields: [packageId], references: [id])
   transmission           Transmission
@@ -114,6 +115,28 @@ model Dossier {
   magicLinks             MagicLink[]
   lessons                Lesson[]
   payments               Payment[]
+  documents              DossierDocument[]
+}
+
+enum DossierDocumentKind {
+  ID
+  THEORIEATTEST
+  M36
+  M18
+  BIJLAGE4
+}
+
+model DossierDocument {
+  id          String              @id @default(cuid())
+  dossierId   String
+  dossier     Dossier             @relation(fields: [dossierId], references: [id], onDelete: Cascade)
+  kind        DossierDocumentKind
+  fileName    String
+  contentType String
+  storagePath String
+  createdAt   DateTime            @default(now())
+
+  @@index([dossierId])
 }
 
 model MagicLink {

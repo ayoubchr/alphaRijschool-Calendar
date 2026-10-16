@@ -9,15 +9,26 @@ import { validateRequestedSlot } from "@/lib/slotValidation";
 import { normalizeRijksregisternummer } from "@/lib/rijksregisternummer";
 import { brusselsDateKey } from "@/lib/brusselsWeek";
 import { availabilityKindForPackage, blockMinutesForPackage, isExamPackage, isTheoryPackage, persistedInstructorId, THEORY_DAY_COUNT } from "@/lib/lessonBlocks";
+import { documentSetForPackage, extraDocumentOptions, uploadError } from "@/lib/bookingDocuments";
+import { removeDossierFiles, storeDossierFile } from "@/lib/dossierFiles";
 import { bookingRequestSchema } from "@/lib/validations/booking";
 import { appUrl } from "@/lib/appUrl";
 
 export async function POST(request: NextRequest) {
-  const parsed = bookingRequestSchema.safeParse(await request.json());
-  if (!parsed.success) {
-    return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
+  const form = await request.formData();
+  let payload: unknown;
+  try {
+    payload = JSON.parse(String(form.get("payload") ?? ""));
+  } catch {
+    return NextResponse.json({ error: "De inschrijving is onvolledig." }, { status: 400 });
   }
-  const { packageId, transmission, slots, details } = parsed.data;
+  const parsed = bookingRequestSchema.safeParse(payload);
+  if (!parsed.success) {
+    return NextResponse.json({ error: "Controleer je gegevens en aanvaard de algemene voorwaarden." }, { status: 400 });
+  }
+  const { packageId, transmission, slots, details, extraKind } = parsed.data;
+  const idFile = form.get("idFile");
+  const extraFile = form.get("extraFile");
 
   const pkg = await getPackageById(packageId);
   if (!pkg) {
@@ -68,6 +79,18 @@ export async function POST(request: NextRequest) {
     }
   }
 
+  const documentSet = documentSetForPackage(pkg);
+  const allowedExtra = extraDocumentOptions(documentSet).map((option) => option.kind);
+  const idError = uploadError(idFile instanceof File ? idFile : null, "een foto van je identiteitskaart");
+  if (idError) return NextResponse.json({ error: idError }, { status: 400 });
+  if (allowedExtra.length > 0) {
+    if (!extraKind || !allowedExtra.includes(extraKind)) {
+      return NextResponse.json({ error: documentSet === "exam" ? "Kies M18, M36 of Bijlage 4." : "Kies een theorieattest of M36." }, { status: 400 });
+    }
+    const extraError = uploadError(extraFile instanceof File ? extraFile : null, "het document");
+    if (extraError) return NextResponse.json({ error: extraError }, { status: 400 });
+  }
+
   const amount = depositBreakdown(pkg, transmission).total;
 
   let dossierId: string;
@@ -88,6 +111,7 @@ export async function POST(request: NextRequest) {
           packageId: pkg.id,
           transmission,
           hoursRemaining: pkg.hours,
+          termsAcceptedAt: new Date(),
         },
       });
 
@@ -125,6 +149,25 @@ export async function POST(request: NextRequest) {
       throw error;
     }
     return NextResponse.json({ error: "Dit lesmoment is ondertussen al bezet." }, { status: 409 });
+  }
+
+  const storedPaths: string[] = [];
+  try {
+    const identity = await storeDossierFile(dossierId, "ID", idFile as File);
+    storedPaths.push(identity.storagePath);
+    const rows = [identity];
+    if (allowedExtra.length > 0 && extraKind) {
+      const extra = await storeDossierFile(dossierId, extraKind, extraFile as File);
+      storedPaths.push(extra.storagePath);
+      rows.push(extra);
+    }
+    await prisma.dossierDocument.createMany({ data: rows.map((row) => ({ ...row, dossierId })) });
+  } catch (error) {
+    console.error("Documenten opslaan mislukt:", error);
+    await removeDossierFiles(storedPaths).catch(() => undefined);
+    await prisma.lesson.deleteMany({ where: { id: { in: createdLessonIds } } });
+    await prisma.dossier.delete({ where: { id: dossierId } });
+    return NextResponse.json({ error: "De documenten konden niet worden opgeslagen. Probeer het opnieuw." }, { status: 500 });
   }
 
   try {

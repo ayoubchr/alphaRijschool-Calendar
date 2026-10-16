@@ -6,6 +6,7 @@ import { auth } from "@/lib/auth";
 import { availabilityKindForPackage, blockHoursForPackage, blockMinutesForPackage, isExamPackage, isTheoryPackage, lessonInstructorName, persistedInstructorId } from "@/lib/lessonBlocks";
 import { sendLessonsChangedEmail } from "@/lib/email";
 import { notifyStaffOfLessons } from "@/lib/notifications";
+import { removeDossierFiles } from "@/lib/dossierFiles";
 import { prisma } from "@/lib/prisma";
 import { validateRequestedSlot } from "@/lib/slotValidation";
 
@@ -131,7 +132,10 @@ export async function planDossierLessons(input: { dossierId: string; slots: { in
 export async function deleteDossier(id: string) {
   const access = await requireAdmin();
   if (!access.ok) return access;
+  const documents = await prisma.dossierDocument.findMany({ where: { dossierId: id }, select: { storagePath: true } });
+  await removeDossierFiles(documents.map((document) => document.storagePath)).catch(() => undefined);
   await prisma.$transaction([
+    prisma.dossierDocument.deleteMany({ where: { dossierId: id } }),
     prisma.lesson.deleteMany({ where: { dossierId: id } }),
     prisma.payment.deleteMany({ where: { dossierId: id } }),
     prisma.magicLink.deleteMany({ where: { dossierId: id } }),

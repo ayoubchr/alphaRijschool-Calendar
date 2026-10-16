@@ -26,7 +26,23 @@ export function DossierDetailsModal({ dossier, onClose }: { dossier: DossierDeta
           <Row label="Rijksregisternummer" value={dossier.nationalRegisterNumber ?? "Niet opgegeven"} />
           <Row label="Resterende uren" value={String(dossier.hoursRemaining)} />
           <Row label="Ingeschreven op" value={dossier.createdAt} />
+          <Row label="Voorwaarden" value={dossier.termsAcceptedAt ? `Aanvaard op ${dossier.termsAcceptedAt}` : "Nog niet aanvaard"} />
         </dl>
+        <h3 className="mt-5 text-sm font-extrabold text-[#111827]">Documenten</h3>
+        {dossier.documents.length === 0 ? (
+          <p className="mt-2 text-sm text-[#58595b]">Geen documenten bij deze inschrijving.</p>
+        ) : (
+          <ul className="mt-2 space-y-2">
+            {dossier.documents.map((document) => (
+              <li key={document.id} className="flex flex-wrap items-center justify-between gap-2 text-sm">
+                <span className="font-medium text-[#111827]">{document.label}</span>
+                <a href={`/api/admin/dossier-documents/${document.id}`} target="_blank" rel="noopener noreferrer" className="font-semibold text-[#ed1c24] underline">
+                  {document.fileName}
+                </a>
+              </li>
+            ))}
+          </ul>
+        )}
         <h3 className="mt-5 text-sm font-extrabold text-[#111827]">Lessen</h3>
         {dossier.lessons.length === 0 ? (
           <p className="mt-2 text-sm text-[#58595b]">Nog geen les ingepland.</p>

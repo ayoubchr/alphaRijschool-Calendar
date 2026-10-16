@@ -8,6 +8,7 @@ import { TransmissionStep } from "./_components/TransmissionStep";
 import { CalendarStep, type BookingSlot } from "./_components/CalendarStep";
 import { DetailsStep, type BookingDetails } from "./_components/DetailsStep";
 import { SummaryStep } from "./_components/SummaryStep";
+import { documentSetForPackage } from "@/lib/bookingDocuments";
 import { blockHoursForPackage, isExamPackage, isPrepExamPackage, isTheoryPackage, THEORY_DAY_COUNT } from "@/lib/lessonBlocks";
 
 type Step = "package" | "transmission" | "calendar" | "details" | "summary";
@@ -125,6 +126,7 @@ function BookingWizard() {
       {step === "details" && selectedPackage && (
         <DetailsStep
           requiresNationalRegisterNumber={!selectedPackage.isSingleLesson}
+          documentSet={documentSetForPackage(selectedPackage)}
           initialValues={details}
           onSubmit={(d) => {
             setDetails(d);

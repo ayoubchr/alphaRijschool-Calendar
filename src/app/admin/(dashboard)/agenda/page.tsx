@@ -24,7 +24,7 @@ export default async function AdminAgendaPage() {
       ...(role === "INSTRUCTOR" ? { instructorId } : {}),
     },
     include: {
-      dossier: { include: { package: true, payments: { orderBy: { createdAt: "desc" } }, lessons: { include: { instructor: true }, orderBy: { startAt: "asc" } } } },
+      dossier: { include: { package: true, payments: { orderBy: { createdAt: "desc" } }, documents: { orderBy: { createdAt: "asc" } }, lessons: { include: { instructor: true }, orderBy: { startAt: "asc" } } } },
       instructor: true,
       package: { select: { name: true } },
     },

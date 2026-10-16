@@ -21,6 +21,8 @@ export const bookingRequestSchema = z.object({
         message: "Ongeldig rijksregisternummer. Verwacht formaat: 11 cijfers, eventueel met punten/streepjes.",
       }),
   }),
+  termsAccepted: z.literal(true),
+  extraKind: z.enum(["THEORIEATTEST", "M36", "M18", "BIJLAGE4"]).optional(),
 });
 
 export type BookingRequest = z.infer<typeof bookingRequestSchema>;

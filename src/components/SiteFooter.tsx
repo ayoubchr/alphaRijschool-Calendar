@@ -1,7 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { SocialIcons } from "@/components/SocialIcons";
-import { ADDRESS, EMAIL, MAP_HREF, NAV_LINKS, PHONE, PHONE_HREF } from "@/lib/site";
+import { ADDRESS, EMAIL, MAP_HREF, NAV_LINKS, PHONE, PHONE_HREF, TERMS_HREF } from "@/lib/site";
 
 export function SiteFooter() {
   return (
@@ -82,9 +82,9 @@ export function SiteFooter() {
             <Link href="/privacybeleid" className="transition hover:text-white">
               Privacybeleid
             </Link>
-            <Link href="/algemene-voorwaarden" className="transition hover:text-white">
+            <a href={TERMS_HREF} target="_blank" rel="noopener noreferrer" className="transition hover:text-white">
               Algemene voorwaarden
-            </Link>
+            </a>
           </div>
         </div>
       </div>

@@ -1,7 +1,8 @@
 "use client";
 
-import Link from "next/link";
 import { useState } from "react";
+import { documentKindLabel } from "@/lib/bookingDocuments";
+import { TERMS_HREF } from "@/lib/site";
 import { isTheoryPackage } from "@/lib/lessonBlocks";
 import { formatEuro } from "@/lib/money";
 import { depositBreakdown } from "@/lib/pricing";
@@ -50,21 +51,25 @@ export function SummaryStep({ selectedPackage, transmission, slots, details, onB
     setSubmitting(true);
     setError(null);
     try {
-      const response = await fetch("/api/bookings", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          packageId: selectedPackage.id,
-          transmission,
-          slots: slots.map((slot) => ({ instructorId: slot.instructorId, startAt: slot.startAt, endAt: slot.endAt })),
-          details,
-        }),
-      });
+      const { idFile, extraFile, extraKind, ...person } = details;
+      const body = new FormData();
+      body.append("payload", JSON.stringify({
+        packageId: selectedPackage.id,
+        transmission,
+        slots: slots.map((slot) => ({ instructorId: slot.instructorId, startAt: slot.startAt, endAt: slot.endAt })),
+        details: person,
+        termsAccepted: true,
+        extraKind,
+      }));
+      body.append("idFile", idFile);
+      if (extraFile) body.append("extraFile", extraFile);
 
-      if (!response.ok) throw new Error("Boeking mislukt, probeer opnieuw.");
+      const response = await fetch("/api/bookings", { method: "POST", body });
+      const result = await response.json().catch(() => null);
+      if (!response.ok) throw new Error(typeof result?.error === "string" ? result.error : "Boeking mislukt, probeer opnieuw.");
 
-      const { checkoutUrl } = await response.json();
-      window.location.href = checkoutUrl;
+      if (!result?.checkoutUrl) throw new Error("Boeking mislukt, probeer opnieuw.");
+      window.location.href = result.checkoutUrl;
     } catch (err) {
       setError(err instanceof Error ? err.message : "Onbekende fout");
       setSubmitting(false);
@@ -77,7 +82,11 @@ export function SummaryStep({ selectedPackage, transmission, slots, details, onB
     ["Telefoon", details.phone],
     ["Adres", details.address],
     ["Geboortedatum", formatBirth(details.dateOfBirth)],
+    ["Identiteitskaart", details.idFile.name],
   ];
+  if (details.extraKind && details.extraFile) {
+    facts.push([documentKindLabel(details.extraKind), details.extraFile.name]);
+  }
 
   return (
     <div>
@@ -148,11 +157,11 @@ export function SummaryStep({ selectedPackage, transmission, slots, details, onB
           <label className="mt-5 flex items-start gap-3 text-sm leading-relaxed">
             <input type="checkbox" checked={accepted} onChange={(event) => setAccepted(event.target.checked)} className="mt-1" />
             <span>
-              Ik ga akkoord met de{" "}
-              <Link href="/algemene-voorwaarden" className="font-semibold text-[#ed1c24] underline" target="_blank">
+              Ik heb de{" "}
+              <a href={TERMS_HREF} className="font-semibold text-[#ed1c24] underline" target="_blank" rel="noopener noreferrer">
                 algemene voorwaarden
-              </Link>
-              .
+              </a>{" "}
+              gelezen en ga ermee akkoord.
             </span>
           </label>
 

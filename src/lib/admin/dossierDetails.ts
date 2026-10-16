@@ -1,3 +1,4 @@
+import { documentKindLabel } from "@/lib/bookingDocuments";
 import { decryptField } from "@/lib/encryption";
 import { lessonInstructorName } from "@/lib/lessonBlocks";
 import { formatEuro } from "@/lib/money";
@@ -18,6 +19,8 @@ export interface DossierDetails {
   transmission: string;
   hoursRemaining: number;
   createdAt: string;
+  termsAcceptedAt: string | null;
+  documents: { id: string; label: string; fileName: string }[];
   lessons: { id: string; when: string; status: string; instructorName: string }[];
   payments: { id: string; label: string; amount: string; status: string; createdAt: string }[];
 }
@@ -60,6 +63,8 @@ export function serializeDossierDetails(dossier: {
   transmission: string;
   hoursRemaining: number;
   createdAt: Date;
+  termsAcceptedAt: Date | null;
+  documents: { id: string; kind: "ID" | "THEORIEATTEST" | "M36" | "M18" | "BIJLAGE4"; fileName: string }[];
   package: { name: string };
   lessons: { id: string; startAt: Date; endAt: Date; status: string; instructor: { name: string } | null }[];
   payments: { id: string; amount: number; type: string; status: string; createdAt: Date }[];
@@ -77,6 +82,12 @@ export function serializeDossierDetails(dossier: {
     transmission: TRANSMISSION[dossier.transmission] ?? dossier.transmission,
     hoursRemaining: dossier.hoursRemaining,
     createdAt: formatDateTime(dossier.createdAt),
+    termsAcceptedAt: dossier.termsAcceptedAt ? formatDateTime(dossier.termsAcceptedAt) : null,
+    documents: dossier.documents.map((document) => ({
+      id: document.id,
+      label: documentKindLabel(document.kind),
+      fileName: document.fileName,
+    })),
     lessons: dossier.lessons
       .filter((lesson) => lesson.status !== "CANCELLED")
       .map((lesson) => ({

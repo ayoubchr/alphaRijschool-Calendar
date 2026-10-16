@@ -6,6 +6,7 @@ export const EMAIL = "rijschoolalpha@gmail.com";
 export const ADDRESS = "Turnhoutsebaan 76B, 2100 Antwerpen";
 export const MAP_HREF = "https://maps.google.com/?q=Turnhoutsebaan+76B,+2100+Antwerpen";
 export const WHATSAPP_HREF = "https://wa.me/32486295375";
+export const TERMS_HREF = "/contract%202026.pdf";
 
 export const NAV_LINKS = [
   { href: "/", label: "Home" },
